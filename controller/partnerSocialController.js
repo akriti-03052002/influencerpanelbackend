@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { Partner } = require("../models/Index");
 const { encrypt } = require("../utils/encryption");
+const { fetchInstagramProfile, expiryFrom, syncSocialAccount } = require("../services/socialSync");
 
 const FRONTEND_URL = process.env.CLIENT_URL || "http://localhost:5183";
 const META_VERSION = process.env.META_GRAPH_VERSION || "v21.0";
@@ -130,43 +131,60 @@ const callback = async (req, res) => {
     const token = await fetchJson(tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenParams });
     // Instagram sometimes wraps the token response in a data array.
     let accessToken = token.access_token || token.data?.[0]?.access_token;
+    let tokenExpiresAt;
     let account;
 
     if (platform === "instagram") {
-      // Swap the 1-hour token for a 60-day one so it stays usable for syncing.
+      // Swap the 1-hour token for a 60-day one; services/socialSync renews
+      // it before it runs out, so the influencer never has to log in again.
       const longLived = await fetchJson(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(provider.clientSecret)}&access_token=${encodeURIComponent(accessToken)}`);
       accessToken = longLived.access_token || accessToken;
-      const data = await fetchJson(`https://graph.instagram.com/${META_VERSION}/me?fields=user_id,username,account_type,followers_count&access_token=${encodeURIComponent(accessToken)}`);
-      account = { accountId: data.user_id || data.id, username: data.username || "", followers: Number(data.followers_count || 0) };
+      tokenExpiresAt = expiryFrom(longLived.expires_in);
+      account = await fetchInstagramProfile(accessToken);
     } else if (platform === "youtube") {
       const data = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, { headers: { Authorization: `Bearer ${accessToken}` } });
       const item = data.items?.[0];
       if (!item) throw new Error("No YouTube channel was found for this account.");
       account = { accountId: item.id, username: item.snippet?.title || "", followers: Number(item.statistics?.subscriberCount || 0) };
     } else {
-      // A user token's /me is the person, not their Page — Pages live
-      // under /me/accounts.
-      const data = await fetchJson(`https://graph.facebook.com/${META_VERSION}/me/accounts?fields=id,name,followers_count,fan_count&access_token=${encodeURIComponent(accessToken)}`);
+      // A Page token obtained from a long-lived user token never expires, so
+      // it's what gets stored for later refreshes. A user token's /me is the
+      // person, not their Page — Pages live under /me/accounts.
+      const longLived = await fetchJson(`https://graph.facebook.com/${META_VERSION}/oauth/access_token?grant_type=fb_exchange_token&client_id=${provider.clientId}&client_secret=${encodeURIComponent(provider.clientSecret)}&fb_exchange_token=${encodeURIComponent(accessToken)}`)
+        .catch(() => ({}));
+      const userToken = longLived.access_token || accessToken;
+      const data = await fetchJson(`https://graph.facebook.com/${META_VERSION}/me/accounts?fields=id,name,followers_count,fan_count,access_token&access_token=${encodeURIComponent(userToken)}`);
       const page = (data.data || [])[0];
       if (!page) throw new Error("No Facebook Page was found. Create a Page (or allow access to it when connecting) and try again.");
       account = { accountId: page.id, username: page.name || "", followers: Number(page.followers_count ?? page.fan_count ?? 0) };
+      accessToken = page.access_token || userToken;
     }
 
-    const partner = await Partner.findById(state.partnerId);
+    // Loaded with the stored tokens so re-saving the array doesn't drop the
+    // tokens of the partner's other connected accounts.
+    const partner = await Partner.findById(state.partnerId).select("+socialAccounts.accessTokenEncrypted");
     if (!partner) throw new Error("Influencer account not found.");
-    partner.socialAccounts = (partner.socialAccounts || []).filter((item) =>
-      item.platform !== platform || (!item.connected && item.source !== "oauth")
-    );
-    partner.socialAccounts.push({
-      platform,
+
+    const connection = {
       ...account,
       connected: true,
       source: "oauth",
-      reviewStatus: "pending",
-      submittedAt: new Date(),
       lastSyncedAt: new Date(),
-      accessTokenEncrypted: encrypt(accessToken)
-    });
+      syncError: "",
+      accessTokenEncrypted: encrypt(accessToken),
+      tokenExpiresAt
+    };
+    // Reconnecting the same account (e.g. after revoking access) keeps its
+    // review status; a different account replaces it and goes back to review.
+    const sameAccount = partner.socialAccounts.find((item) => item.platform === platform && item.accountId === account.accountId);
+    if (sameAccount) {
+      Object.assign(sameAccount, connection);
+    } else {
+      partner.socialAccounts = partner.socialAccounts.filter((item) =>
+        item.platform !== platform || (!item.connected && item.source !== "oauth")
+      );
+      partner.socialAccounts.push({ platform, ...connection, reviewStatus: "pending", submittedAt: new Date() });
+    }
     await partner.save();
     return res.redirect(`${frontendUrl}/partner/social-media?social=connected&platform=${platform}`);
   } catch (error) {
@@ -175,4 +193,14 @@ const callback = async (req, res) => {
   }
 };
 
-module.exports = { startConnection, callback };
+// "Refresh" button — pulls the latest follower count with the stored token.
+const refreshAccount = async (req, res) => {
+  try {
+    const account = await syncSocialAccount(req.partner._id, req.params.accountId);
+    return res.json({ success: true, message: "Follower count updated.", data: { followers: account.followers, username: account.username, lastSyncedAt: account.lastSyncedAt } });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { startConnection, callback, refreshAccount };

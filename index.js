@@ -4,6 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
+const { syncAllStaleAccounts } = require("./services/socialSync");
 
 const partnerAuthMiddleware = require("./middleware/partnerAuthMiddleware");
 const loadPartnerContext = require("./middleware/loadPartnerContext");
@@ -148,4 +149,10 @@ connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  // Keep connected Instagram/Facebook follower counts (and tokens) fresh
+  // even for influencers who don't open the panel.
+  const runSocialSync = () => syncAllStaleAccounts().catch((error) => console.error("Social sync failed:", error.message));
+  runSocialSync();
+  setInterval(runSocialSync, 6 * 60 * 60 * 1000);
 });

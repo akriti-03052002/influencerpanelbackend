@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Partner, InfluencerContentSubmission } = require("../models/Index");
 const normalizeContentUrl = require("../utils/normalizeContentUrl");
+const { syncStaleAccounts } = require("../services/socialSync");
 
 const PLATFORMS = {
   instagram: ["instagram.com"],
@@ -31,12 +32,20 @@ const requireInfluencer = (req, res) => {
 
 const listAccounts = async (req, res) => {
   if (!requireInfluencer(req, res)) return;
-  const accounts = (req.partner.socialAccounts || []).map((account) => ({
+  // Connected accounts refresh their follower count on their own using the
+  // stored token — the influencer only logs in once.
+  const synced = await syncStaleAccounts(req.partner);
+  const partner = synced ? await Partner.findById(req.partner._id).select("socialAccounts") : req.partner;
+  const accounts = (partner.socialAccounts || []).map((account) => ({
     _id: account._id,
     platform: account.platform,
     accountId: account.accountId,
     username: account.username,
     followers: account.followers,
+    connected: Boolean(account.connected),
+    source: account.source,
+    lastSyncedAt: account.lastSyncedAt,
+    syncError: account.syncError || "",
     reviewStatus: account.reviewStatus || "pending",
     submittedAt: account.submittedAt || account.createdAt,
     reviewedAt: account.reviewedAt,

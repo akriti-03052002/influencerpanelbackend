@@ -110,7 +110,13 @@ const PartnerSchema = new Schema(
       reviewedAt: { type: Date },
       rejectionReason: { type: String, default: "" },
       lastSyncedAt: { type: Date },
-      accessTokenEncrypted: { type: String, select: false }
+      // Why the last automatic refresh failed (e.g. the influencer revoked
+      // access) — cleared on the next successful sync.
+      syncError: { type: String, default: "" },
+      accessTokenEncrypted: { type: String, select: false },
+      // When the stored token stops working; unset for tokens that don't
+      // expire (Facebook Page tokens).
+      tokenExpiresAt: { type: Date }
     }],
 
     influencerPaymentRates: {

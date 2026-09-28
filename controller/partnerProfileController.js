@@ -26,7 +26,9 @@ const updateProfile = async (req, res) => {
       socialAccounts
     } = req.body;
 
-    const partner = await Partner.findById(req.partner._id);
+    // Loaded with the stored social tokens so rebuilding socialAccounts below
+    // doesn't silently disconnect accounts linked through Instagram/Facebook.
+    const partner = await Partner.findById(req.partner._id).select("+socialAccounts.accessTokenEncrypted");
 
     if (businessName) partner.legalEntity.businessName = businessName;
     if (legalName !== undefined) partner.legalEntity.legalName = legalName;
@@ -65,19 +67,32 @@ const updateProfile = async (req, res) => {
         seenPlatforms.add(account.platform);
       }
 
-      partner.socialAccounts = socialAccounts.map((account) => ({
-        platform: account.platform,
-        accountId: account.accountId.trim(),
-        username: account.username?.trim() || "",
-        followers: Number(account.followers),
-        connected: Boolean(account.connected),
-        lastSyncedAt: account.lastSyncedAt || undefined
-      }));
+      partner.socialAccounts = socialAccounts.map((account) => {
+        const accountId = account.accountId.trim();
+        const existing = partner.socialAccounts.find((item) => item.platform === account.platform && item.accountId === accountId);
+        // A connected account keeps its synced data, token and review status;
+        // its follower count comes from the platform, not this form.
+        if (existing?.connected) return existing;
+        if (existing) {
+          existing.username = account.username?.trim() || "";
+          existing.followers = Number(account.followers);
+          return existing;
+        }
+        return {
+          platform: account.platform,
+          accountId,
+          username: account.username?.trim() || "",
+          followers: Number(account.followers),
+          connected: false
+        };
+      });
     }
 
     await partner.save();
 
-    return res.json({ success: true, message: "Profile updated.", data: partner });
+    // Re-read so the stored social tokens selected above never reach the client.
+    const saved = await Partner.findById(partner._id);
+    return res.json({ success: true, message: "Profile updated.", data: saved });
   } catch (error) {
     console.error("updateProfile error:", error);
     return res.status(500).json({ success: false, message: "Something went wrong updating your profile." });
