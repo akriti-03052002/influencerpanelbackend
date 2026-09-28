@@ -50,9 +50,11 @@ const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "ht
   .split(",")
   .map((origin) => origin.trim());
 
+// CLIENT_URLS=* lets any frontend call the API (testing only — set a real
+// list of frontend URLs before going live).
 app.use(
   cors({
-    origin: allowedOrigins
+    origin: allowedOrigins.includes("*") ? true : allowedOrigins
   })
 );
 

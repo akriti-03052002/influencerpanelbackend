@@ -29,6 +29,27 @@ const config = {
   }
 };
 
+const allowedOrigins = () => (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+// The frontend that started the connect flow, if it's one we accept (any
+// http(s) origin when CLIENT_URLS=*) — so the influencer lands back on the
+// same frontend instead of always CLIENT_URL.
+const pickReturnOrigin = (value) => {
+  let origin;
+  try {
+    const url = new URL(String(value || ""));
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    origin = url.origin;
+  } catch {
+    return undefined;
+  }
+  const allowed = allowedOrigins();
+  return allowed.includes("*") || allowed.includes(origin) ? origin : undefined;
+};
+
 const redirectUri = (platform) => `${process.env.API_PUBLIC_URL || "http://localhost:5000"}/api/partner/social/${platform}/callback`;
 
 const startConnection = (req, res) => {
@@ -39,7 +60,7 @@ const startConnection = (req, res) => {
     return res.status(503).json({ success: false, message: `${platform} OAuth is not configured yet. Add the developer app credentials to backend/.env.` });
   }
 
-  const state = jwtState({ partnerId: req.partner._id.toString(), platform });
+  const state = jwtState({ partnerId: req.partner._id.toString(), platform, returnTo: pickReturnOrigin(req.query.returnTo) });
   const params = new URLSearchParams({
     client_id: provider.clientId,
     redirect_uri: redirectUri(platform),
@@ -80,9 +101,18 @@ const fetchJson = async (url, options) => {
 };
 
 const callback = async (req, res) => {
+  let frontendUrl = FRONTEND_URL;
   try {
+    // Read the state first so even a cancelled login goes back to the
+    // frontend that started it.
+    let state;
+    try {
+      state = readState(req.query.state);
+      frontendUrl = state.returnTo || FRONTEND_URL;
+    } catch (stateError) {
+      if (!req.query.error) throw stateError;
+    }
     if (req.query.error) throw new Error(req.query.error_description || "Connection was cancelled.");
-    const state = readState(req.query.state);
     const platform = state.platform;
     const provider = config[platform];
     const tokenParams = new URLSearchParams({
@@ -138,10 +168,10 @@ const callback = async (req, res) => {
       accessTokenEncrypted: encrypt(accessToken)
     });
     await partner.save();
-    return res.redirect(`${FRONTEND_URL}/partner/social-media?social=connected&platform=${platform}`);
+    return res.redirect(`${frontendUrl}/partner/social-media?social=connected&platform=${platform}`);
   } catch (error) {
     console.error("social OAuth callback error:", error);
-    return res.redirect(`${FRONTEND_URL}/partner/social-media?social=error&message=${encodeURIComponent(error.message)}`);
+    return res.redirect(`${frontendUrl}/partner/social-media?social=error&message=${encodeURIComponent(error.message)}`);
   }
 };
 
