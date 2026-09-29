@@ -75,6 +75,10 @@ const startConnection = (req, res) => {
   } else {
     params.set("scope", provider.scope);
   }
+  // Keeps a logged-out influencer inside the connect flow: without it,
+  // Instagram can drop them on their home feed after they log in instead
+  // of continuing to the "Allow" screen and back to us.
+  if (platform === "instagram") params.set("force_reauth", "true");
   if (platform === "youtube") params.set("access_type", "offline");
   return res.json({ success: true, url: `${provider.authUrl}?${params.toString()}` });
 };
