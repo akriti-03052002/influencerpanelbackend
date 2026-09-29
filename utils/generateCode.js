@@ -20,14 +20,8 @@ const generateReferralCode = () => {
 
 const generateSettlementNumber = () => "STL-" + Date.now().toString().slice(-8) + "-" + randomSegment(3);
 
-// Vendor partner referral code, generated once the partner is admin-verified
-// (see adminPartnerController.updatePartnerStatus). Numeric per spec, so it's
-// easy for a customer to type in on a signup form.
-const generateNumericReferralCode = () => String(crypto.randomInt(1000, 10000));
-
 module.exports = {
   generatePartnerCode,
   generateReferralCode,
-  generateNumericReferralCode,
   generateSettlementNumber
 };

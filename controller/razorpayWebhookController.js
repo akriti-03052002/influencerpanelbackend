@@ -1,8 +1,6 @@
-const CustomerPayment = require("../models/CustomerPayment");
 const { PartnerBankAccount } = require("../models/Index");
 const ScreenLicensePurchaseOrder = require("../models/ScreenLicensePurchaseOrder");
 const ResellerInvoice = require("../models/ResellerInvoice");
-const { applyPaidCustomerPayment } = require("../services/customerPaymentFulfillment");
 const { applyBankVerificationPayment } = require("../services/partnerBankVerification");
 const { applyPaidLicenseOrder, markLicenseOrderFailed } = require("../services/resellerLicenseOrderFulfillment");
 const { applyPaidInvoice, markInvoicePaymentFailed } = require("../services/resellerInvoicePaymentFulfillment");
@@ -10,11 +8,11 @@ const { verifyWebhookSignature } = require("../utils/razorpay");
 
 /* ============================================================
    RAZORPAY WEBHOOK
-   Safety net for the customer subscription checkout: if the customer's
-   browser closes (or the network drops) right after Checkout succeeds but
-   before the app's own /verify call lands, this is what still gets the
-   subscription activated and commission generated — Razorpay retries
-   webhook delivery on failure, the browser call does not.
+   Safety net for Razorpay Checkout payments: if the payer's browser
+   closes (or the network drops) right after Checkout succeeds but before
+   the app's own /verify call lands, this is what still records the
+   payment — Razorpay retries webhook delivery on failure, the browser
+   call does not.
 
    (Partner settlement payouts are always Offline or Razorpay-verify,
    admin-initiated and admin-confirmed — there's no automated payout flow
@@ -29,13 +27,11 @@ const { verifyWebhookSignature } = require("../utils/razorpay");
      URL: <your API base>/api/webhooks/razorpay
      Secret: same value as RAZORPAY_WEBHOOK_SECRET in .env
      Events: payment.captured, payment.failed
-     (also doubles as the safety net for the partner's ₹1 bank
-     verification payment — distinguished from the customer subscription
-     payment by payment.notes.purpose === "partner_bank_verification", see
-     partnerBankController.initiateBankVerification — and for two Reseller
-     payment purposes: "reseller_license_purchase" and
-     "reseller_invoice_payment", see partnerLicenseOrderController and
-     partnerResellerBillingController respectively)
+     Payments are told apart by payment.notes.purpose:
+     "partner_bank_verification" (the partner's ₹1 bank check, see
+     partnerBankController.initiateBankVerification), and the two Reseller
+     purposes "reseller_license_purchase" and "reseller_invoice_payment"
+     (see partnerLicenseOrderController and partnerResellerBillingController).
 ============================================================ */
 
 const handleRazorpayWebhook = async (req, res) => {
@@ -80,14 +76,6 @@ const handleRazorpayWebhook = async (req, res) => {
         }
         return res.json({ success: true });
       }
-
-      const customerPayment = await CustomerPayment.findOne({ "razorpay.orderId": payment.order_id });
-      // Amount mismatch would mean the order was tampered with somewhere
-      // upstream of Razorpay's own records — refuse to fulfill rather than
-      // trust it.
-      if (customerPayment && payment.amount === Math.round(customerPayment.amount.total * 100)) {
-        await applyPaidCustomerPayment(customerPayment._id, { razorpayPaymentId: payment.id, method: payment.method });
-      }
     } else if (event.event === "payment.failed") {
       const payment = event.payload?.payment?.entity;
       if (!payment?.order_id) return res.json({ success: true });
@@ -121,17 +109,6 @@ const handleRazorpayWebhook = async (req, res) => {
         if (invoice) await markInvoicePaymentFailed(invoice._id);
         return res.json({ success: true });
       }
-
-      await CustomerPayment.findOneAndUpdate(
-        { "razorpay.orderId": payment.order_id, status: "created" },
-        {
-          $set: {
-            status: "failed",
-            "razorpay.failureCode": payment.error_code || "",
-            "razorpay.failureReason": payment.error_description || "Payment failed."
-          }
-        }
-      );
     }
 
     return res.json({ success: true });

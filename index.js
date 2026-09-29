@@ -10,13 +10,9 @@ const partnerAuthMiddleware = require("./middleware/partnerAuthMiddleware");
 const loadPartnerContext = require("./middleware/loadPartnerContext");
 const requireVerifiedPartner = require("./middleware/requireVerifiedPartner");
 const adminAuthMiddleware = require("./middleware/adminAuthMiddleware");
-const customerAuthMiddleware = require("./middleware/customerAuthMiddleware");
-const loadCustomerContext = require("./middleware/loadCustomerContext");
 const { handleRazorpayWebhook } = require("./controller/razorpayWebhookController");
 
 const partnerAuthRoutes = require("./router/partnerAuthRoutes");
-const customerPublicRoutes = require("./router/customerPublicRoutes");
-const customerRoutes = require("./router/customerRoutes");
 const partnerProfileRoutes = require("./router/partnerProfileRoutes");
 const partnerDocumentRoutes = require("./router/partnerDocumentRoutes");
 const partnerBankRoutes = require("./router/partnerBankRoutes");
@@ -34,7 +30,6 @@ const adminBankRoutes = require("./router/adminBankRoutes");
 const adminConfigRoutes = require("./router/adminConfigRoutes");
 const adminCommissionRoutes = require("./router/adminCommissionRoutes");
 const adminSettlementRoutes = require("./router/adminSettlementRoutes");
-const adminCustomerRoutes = require("./router/adminCustomerRoutes");
 const adminStatsRoutes = require("./router/adminStatsRoutes");
 const adminResellerRoutes = require("./router/adminResellerRoutes");
 const adminSocialMediaRoutes = require("./router/adminSocialMediaRoutes");
@@ -82,9 +77,6 @@ app.get("/", (req, res) => {
 
 app.use("/api/partner/auth", partnerAuthRoutes);
 app.use("/api/partner/social", partnerSocialCallbackRoutes);
-app.use("/api/public/customers", customerPublicRoutes);
-
-app.use("/api/customer", customerAuthMiddleware, loadCustomerContext, customerRoutes);
 
 const partnerGuard = [partnerAuthMiddleware, loadPartnerContext];
 // Everything a partner needs in order to GET verified stays open; anything
@@ -115,7 +107,6 @@ app.use("/api/admin/bank", adminAuthMiddleware, adminBankRoutes);
 app.use("/api/admin/config", adminAuthMiddleware, adminConfigRoutes);
 app.use("/api/admin/commissions", adminAuthMiddleware, adminCommissionRoutes);
 app.use("/api/admin/settlements", adminAuthMiddleware, adminSettlementRoutes);
-app.use("/api/admin/customers", adminAuthMiddleware, adminCustomerRoutes);
 app.use("/api/admin/stats", adminAuthMiddleware, adminStatsRoutes);
 app.use("/api/admin/reseller", adminAuthMiddleware, adminResellerRoutes);
 app.use("/api/admin/social-media", adminAuthMiddleware, adminSocialMediaRoutes);

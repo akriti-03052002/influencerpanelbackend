@@ -1,4 +1,4 @@
-const { Partner, Customer, PartnerDocument, PartnerBankAccount, PartnerCommission, PartnerSettlement } = require("../models/Index");
+const { Partner, PartnerDocument, PartnerBankAccount, PartnerCommission, PartnerSettlement } = require("../models/Index");
 
 /* ============================================================
    ADMIN — CROSS-CUTTING KPI AGGREGATION
@@ -11,7 +11,6 @@ const groupCounts = (rows) => rows.reduce((acc, r) => ({ ...acc, [r._id || "unkn
 const getKpis = async (req, res) => {
   const [
     totalPartners, activePartners, partnersByType, partnersByStatus,
-    totalCustomers, customersBySubStatus,
     documentsByStatus, bankAccountsByStatus, commissionsByStatus, settlementsByStatus,
     commissionTotals, paidPayouts
   ] = await Promise.all([
@@ -19,8 +18,6 @@ const getKpis = async (req, res) => {
     Partner.countDocuments({ status: "active" }),
     Partner.aggregate([{ $group: { _id: "$partnerType", count: { $sum: 1 } } }]),
     Partner.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-    Customer.countDocuments(),
-    Customer.aggregate([{ $group: { _id: "$subscription.status", count: { $sum: 1 } } }]),
     PartnerDocument.aggregate([{ $group: { _id: "$verification.status", count: { $sum: 1 } } }]),
     PartnerBankAccount.aggregate([{ $group: { _id: "$verification.status", count: { $sum: 1 } } }]),
     PartnerCommission.aggregate([{ $group: { _id: "$settlement.status", count: { $sum: 1 } } }]),
@@ -36,8 +33,6 @@ const getKpis = async (req, res) => {
       activePartners,
       partnersByType: groupCounts(partnersByType),
       partnersByStatus: groupCounts(partnersByStatus),
-      totalCustomers,
-      customersBySubscriptionStatus: groupCounts(customersBySubStatus),
       documentsByStatus: groupCounts(documentsByStatus),
       bankAccountsByStatus: groupCounts(bankAccountsByStatus),
       commissionsByStatus: groupCounts(commissionsByStatus),

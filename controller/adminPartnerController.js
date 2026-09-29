@@ -6,7 +6,6 @@ const { generatePartnerCode, generateReferralCode } = require("../utils/generate
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const { COMMISSION_TYPES } = require("../config/constant");
 const logActivity = require("../utils/logActivity");
-const { assignReferralCode } = require("../services/vendorActivation");
 const { attachPartnerAgreement, issuePartnerAgreementForAssignment } = require("../services/generatePartnerAgreement");
 const { getRequiredDocumentTypes } = require("../utils/partnerVerification");
 const { sendMail } = require("../utils/mailer");
@@ -18,7 +17,7 @@ const { holdSettlementsForPartner } = require("../utils/settlementHold");
 
 // Method 2 from the spec: an admin onboards a partner on their behalf
 // (no self-registration) — same minimal fields as partnerAuthController.
-// registerPartner (type, name, email, phone). Unlike a customer invite, the admin
+// registerPartner (type, name, email, phone). The admin
 // types the partner's login password directly here rather than the partner
 // picking their own via a set-password link — the plaintext password is
 // emailed to them once below (the only place it's ever available, before
@@ -214,20 +213,10 @@ const updatePartnerStatus = async (req, res) => {
 
     partner.status = status;
 
-    let generatedReferralCode = null;
-
     if (status === "active") {
       partner.verification.overallStatus = "verified";
       partner.verification.verifiedBy = req.adminUser._id;
       partner.verification.verifiedAt = new Date();
-
-      // Vendor's customer-signup code — normally auto-generated the moment
-      // documents + bank verification both complete (see
-      // autoActivateVendorIfVerified). This is the manual-override path:
-      // an admin activating a vendor by hand still gets one too.
-      if (partner.partnerType === "vendor" && !partner.referral?.referralCode) {
-        generatedReferralCode = await assignReferralCode(partner);
-      }
     }
 
     if (status === "rejected") {
@@ -263,16 +252,6 @@ const updatePartnerStatus = async (req, res) => {
     // the admin sets their commission; every other type gets one on activation.
     if (status === "active" && partner.partnerType !== "vendor") {
       await attachPartnerAgreement(partner, req.adminUser._id);
-    }
-
-    if (generatedReferralCode) {
-      await PartnerNotification.create({
-        partnerId: partner._id,
-        type: "referral_code_generated",
-        title: "Your customer referral code is ready",
-        message: `Your account is verified. Share code ${generatedReferralCode} with customers so they can register under you.`,
-        entity: { type: "Partner", entityId: partner._id }
-      });
     }
 
     if (status === "rejected") {
