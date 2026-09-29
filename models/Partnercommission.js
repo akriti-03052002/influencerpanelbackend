@@ -19,11 +19,6 @@ const PartnerCommissionSchema = new Schema(
       index: true
     },
 
-    commissionRuleId: {
-      type: ObjectId,
-      ref: "CommissionRule"
-    },
-
     /* TRANSACTION */
     transaction: {
       invoiceNumber: { type: String, default: "" },

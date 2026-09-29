@@ -35,7 +35,6 @@ const PartnerActivitySchema = new Schema(
 
         "commission_created",
         "commission_approved",
-        "commission_assigned",
 
         "settlement_created",
         "settlement_paid",

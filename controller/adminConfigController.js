@@ -1,37 +1,11 @@
-const { CommissionRule, SettlementSetting } = require("../models/Index");
+const { SettlementSetting } = require("../models/Index");
 const { getMaskedSettings, updateSettings } = require("../utils/paymentGatewayConfig");
 
 /* ============================================================
-   ADMIN — COMMISSION RULE / SETTLEMENT SETTING / PAYMENT GATEWAY
+   ADMIN — SETTLEMENT SETTING / PAYMENT GATEWAY
    Plain CRUD for the configuration resources. Grouped in one
    file since each is a small, near-identical pattern.
 ============================================================ */
-
-// ---- Commission Rules ----
-
-const listCommissionRules = async (req, res) => {
-  const filter = {};
-  if (req.query.partnerType) filter.partnerType = req.query.partnerType;
-  if (req.query.isAddOn !== undefined) filter.isAddOn = req.query.isAddOn === "true";
-
-  const rules = await CommissionRule.find(filter).sort({ createdAt: -1 });
-  return res.json({ success: true, data: rules });
-};
-
-const createCommissionRule = async (req, res) => {
-  try {
-    const rule = await CommissionRule.create(req.body);
-    return res.status(201).json({ success: true, message: "Commission rule created.", data: rule });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const updateCommissionRule = async (req, res) => {
-  const rule = await CommissionRule.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after", runValidators: true });
-  if (!rule) return res.status(404).json({ success: false, message: "Commission rule not found." });
-  return res.json({ success: true, message: "Commission rule updated.", data: rule });
-};
 
 // ---- Settlement Settings ----
 
@@ -82,7 +56,6 @@ const updatePaymentGatewaySettings = async (req, res) => {
 };
 
 module.exports = {
-  listCommissionRules, createCommissionRule, updateCommissionRule,
   listSettlementSettings, upsertSettlementSetting,
   getPaymentGatewaySettings, updatePaymentGatewaySettings
 };

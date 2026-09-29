@@ -2,15 +2,10 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  listCommissionRules, createCommissionRule, updateCommissionRule,
   listSettlementSettings, upsertSettlementSetting,
   getPaymentGatewaySettings, updatePaymentGatewaySettings
 } = require("../controller/adminConfigController");
 const requireAdminRole = require("../middleware/requireAdminRole");
-
-router.get("/commission-rules", requireAdminRole("finance"), listCommissionRules);
-router.post("/commission-rules", requireAdminRole("finance"), createCommissionRule);
-router.patch("/commission-rules/:id", requireAdminRole("finance"), updateCommissionRule);
 
 router.get("/settlement-settings", requireAdminRole("finance"), listSettlementSettings);
 router.put("/settlement-settings", requireAdminRole("finance"), upsertSettlementSetting);

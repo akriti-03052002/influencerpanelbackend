@@ -3,7 +3,6 @@ module.exports = {
   PartnerUser: require("./Partneruser"),
   PartnerDocument: require("./PartnerDocument"),
   PartnerBankAccount: require("./Partnerbankaccount"),
-  CommissionRule: require("./Commissionrule"),
   SettlementSetting: require("./Settlementsetting"),
   PartnerCommission: require("./Partnercommission"),
   PartnerSettlement: require("./Partnersettlement"),

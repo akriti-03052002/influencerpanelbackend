@@ -1,9 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
-const { CommissionRule, SettlementSetting, PartnerDocument } = require("../models/Index");
-const PartnerAgreementAcceptance = require("../models/PartnerAgreementAcceptance");
-const { getActiveCommissionAssignment } = require("../utils/partnerCommissionResolver");
+const { SettlementSetting, PartnerDocument } = require("../models/Index");
 
 const UPLOAD_ROOT = path.join(__dirname, "..", "uploads", "partners");
 const LOGO_PATH = path.join(__dirname, "..", "assets", "spotx-logo.png");
@@ -15,92 +13,26 @@ const CHARCOAL = "#2D2D2D";
 const MUTED = "#666666";
 const FAINT = "#999999";
 
-/**
- * Same rule-lookup precedence the commission engine itself uses (the
- * partner type's rule, falling back to a generic one) — the agreement should
- * describe the exact terms that will actually apply, not a paraphrase.
- */
-const findApplicableRule = async (partner) => {
-  const assignment = await getActiveCommissionAssignment(partner._id);
-  if (assignment) return assignment;
-
-  const typeRule = await CommissionRule.findOne({ partnerType: partner.partnerType, isAddOn: { $ne: true }, status: "active" });
-  if (typeRule) return typeRule;
-
-  return CommissionRule.findOne({
-    status: "active",
-    isAddOn: { $ne: true },
-    $or: [{ partnerType: null }, { partnerType: { $exists: false } }]
-  });
-};
-
 const formatPercent = (n) => `${n}%`;
 const formatMoney = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
-const CALCULATION_BASE_LABEL = {
-  invoice_total: "the total invoice value of the deal",
-  subscription_value: "the customer's subscription value",
-  net_revenue: "the net revenue recognized on the deal",
-  first_payment: "the customer's first payment only",
-  screen_count: "the number of screens on the deal"
-};
-
 /**
- * Turns a CommissionRule document into a plain-English sentence describing
- * exactly how and when the partner gets paid — this is the one part of the
- * agreement that must never drift from what the commission engine actually
- * computes (see services/commissionEngine.js).
+ * What the influencer is paid, straight from the per-post / per-reel rates
+ * an admin sets on the partner (see adminSocialMediaController) — the same
+ * amounts credited when each submission is approved.
  */
-const describeCommissionRule = (rule) => {
-  if (!rule) {
-    return "No commission rule is currently configured for this partner. SPOTX will assign one before any commission becomes payable, and this Agreement will be reissued to reflect it.";
+const describePaymentTerms = (partner) => {
+  const rates = partner.influencerPaymentRates;
+  if (!rates || (!rates.post && !rates.reel)) {
+    return "Payment rates for this Partner have not been set yet. SPOTX will set per-post and per-reel rates before any payment becomes payable, and this Agreement will be reissued to reflect them.";
   }
-
-  const base = CALCULATION_BASE_LABEL[rule.calculationBase] || "the applicable deal value";
-  const recurringNote = rule.recurring?.enabled
-    ? rule.recurring.durationType === "lifetime"
-      ? " for as long as the underlying subscription remains active"
-      : rule.recurring.duration
-        ? ` for ${rule.recurring.duration} ${rule.recurring.durationType}`
-        : ""
-    : "";
-
-  switch (rule.commissionType) {
-    case "wholesale_discount":
-      return `The Partner purchases SPOTX's platform at a wholesale discount of ${formatPercent(rule.rate)} off ${base}. This discount is the Partner's full margin on resale and is realized at the time of purchase — it is not a recurring payout and does not flow through SPOTX's standard settlement cycle.`;
-
-    case "percentage":
-      return `The Partner earns a commission of ${formatPercent(rule.rate)} of ${base} on each won deal attributed to the Partner.`;
-
-    case "recurring_percentage":
-      return `The Partner earns a recurring commission of ${formatPercent(rule.rate)} of ${base} on each won deal attributed to the Partner${recurringNote}.`;
-
-    case "fixed_per_deal":
-      return `The Partner earns a fixed commission of ${formatMoney(rule.fixedAmount)} per won deal attributed to the Partner.`;
-
-    case "recurring_fixed":
-      return `The Partner earns a fixed recurring commission of ${formatMoney(rule.fixedAmount)} per won deal attributed to the Partner${recurringNote}.`;
-
-    case "fixed_per_screen":
-      return `The Partner earns a fixed commission of ${formatMoney(rule.perScreenAmount)} per screen on each won deal attributed to the Partner.`;
-
-    case "hybrid": {
-      const parts = [];
-      if (rule.hybrid?.percentageRate) parts.push(`${formatPercent(rule.hybrid.percentageRate)} of ${base}`);
-      if (rule.hybrid?.fixedAmount) parts.push(`a fixed ${formatMoney(rule.hybrid.fixedAmount)} per deal`);
-      if (rule.hybrid?.perScreenAmount) parts.push(`${formatMoney(rule.hybrid.perScreenAmount)} per screen`);
-      return `The Partner earns a combined commission of ${parts.join(" plus ")} on each won deal attributed to the Partner${recurringNote}.`;
-    }
-
-    default:
-      return "Commission terms for this rule type will be confirmed separately by SPOTX.";
-  }
+  return `The Partner earns ${formatMoney(rates.post)} for each approved post and ${formatMoney(rates.reel)} for each approved reel promoting SPOTX, submitted through the SPOTX Partner Panel.`;
 };
 
 const SCOPE_BY_PARTNER_TYPE = {
   vendor: "The Partner will refer and onboard end-customers who subscribe to the SPOTX platform, either by registering customers directly on the Partner's behalf or by sharing the Partner's unique customer referral code. Each registered customer receives a 30-day free trial before conversion to a paid subscription.",
   affiliate: "The Partner will refer prospective customers and leads to SPOTX in exchange for the commission described in Section 5 below.",
-  influencer: "The Partner will promote SPOTX to its audience and refer prospective customers and leads to SPOTX in exchange for the commission described in Section 5 below.",
+  influencer: "The Partner will promote SPOTX to its audience through posts and reels on its verified social media accounts, in exchange for the payment described in the Payment Terms section below.",
   referral: "The Partner will make bona fide introductions of prospective customers to SPOTX in exchange for a referral fee as described in Section 5 below.",
   agency: "The Partner will represent and refer SPOTX's platform to its own client base under the arrangement configured in the SPOTX Partner Panel.",
   technology: "The Partner will integrate, bundle, or otherwise technically collaborate with SPOTX's platform under the arrangement configured in the SPOTX Partner Panel.",
@@ -135,10 +67,7 @@ const generatePartnerAgreementFile = async (partner) => {
   const filename = `partner-agreement-${Date.now()}.pdf`;
   const filePath = path.join(partnerDir, filename);
 
-  const [rule, settlementSetting] = await Promise.all([
-    findApplicableRule(partner),
-    SettlementSetting.findOne({ partnerId: partner._id })
-  ]);
+  const settlementSetting = await SettlementSetting.findOne({ partnerId: partner._id });
 
   const effectiveDate = new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
   const agreementRef = `SPX-AGR-${partner.partnerCode}`;
@@ -246,15 +175,15 @@ const generatePartnerAgreementFile = async (partner) => {
       "found not to be the case."
     );
 
-    // ---- Commission & Payment Terms ----
-    heading("Commission & Payment Terms");
-    body(describeCommissionRule(rule));
+    // ---- Payment Terms ----
+    heading("Payment Terms");
+    body(describePaymentTerms(partner));
     doc.moveDown(0.4);
     body(
-      `Commission is calculated and recorded by SPOTX at the time a deal is won, and becomes eligible for settlement ` +
-      `after SPOTX's internal review and approval. Settlements are processed on a ${settlementCadence.toLowerCase()} basis to the ` +
+      `A payment is recorded when SPOTX approves a submitted post or reel, and becomes eligible for settlement ` +
+      `after SPOTX's internal review. Settlements are processed on a ${settlementCadence.toLowerCase()} basis to the ` +
       `bank account verified by the Partner in the SPOTX Partner Panel.${tdsNote} SPOTX reserves the right to hold or ` +
-      `reverse any commission connected to a deal that is subsequently cancelled, refunded, or found to be fraudulent.`
+      `reverse any payment connected to content that is subsequently removed, misrepresented, or found to be fraudulent.`
     );
 
     // ---- Term & Termination ----
@@ -264,7 +193,7 @@ const generatePartnerAgreementFile = async (partner) => {
       "may terminate this Agreement for convenience upon thirty (30) days' prior written notice to the other Party. " +
       "SPOTX may suspend or terminate this Agreement immediately upon written notice if the Partner breaches this " +
       "Agreement, provides false information, or engages in fraudulent or unlawful conduct. Termination does not " +
-      "affect commission already earned on deals won prior to the effective date of termination, which remains " +
+      "affect payment already earned for content approved prior to the effective date of termination, which remains " +
       "payable per the settlement terms above."
     );
 
@@ -297,7 +226,7 @@ const generatePartnerAgreementFile = async (partner) => {
     heading("Limitation of Liability");
     body(
       "Neither Party will be liable to the other for any indirect, incidental, or consequential damages arising out " +
-      "of this Agreement. Each Party's total liability under this Agreement is limited to the commission amounts " +
+      "of this Agreement. Each Party's total liability under this Agreement is limited to the amounts " +
       "actually paid or payable to the Partner in the twelve (12) months preceding the event giving rise to the claim."
     );
 
@@ -321,7 +250,7 @@ const generatePartnerAgreementFile = async (partner) => {
     body(
       "This Agreement, generated by the SPOTX Partner Panel upon verification of the Partner's account, reflects the " +
       "commercial terms configured for the Partner as of the Effective Date and constitutes the entire understanding " +
-      "between the Parties regarding the subject matter herein. Any amendment to the commission structure or " +
+      "between the Parties regarding the subject matter herein. Any amendment to the payment rates or " +
       "scope described above will be reflected in a reissued version of this Agreement."
     );
 
@@ -405,48 +334,4 @@ const attachPartnerAgreement = async (partner, adminUserId) => {
   });
 };
 
-/**
- * Always issues a FRESH agreement — unlike attachPartnerAgreement (which
- * is idempotent and only ever creates one document per partner, used by
- * the non-vendor activation path), this is what backs the vendor
- * custom-commission-assignment flow: every time an admin sets/changes a
- * vendor's commission, the agreement must be reissued to describe the
- * new terms (see the "Entire Agreement" section of the PDF itself, which
- * says exactly this). The new PartnerDocument row sits alongside any
- * earlier ones — the admin/partner UIs already pick the latest by
- * createdAt, so nothing needs to delete the old one.
- *
- * Also writes the PartnerAgreementAcceptance row — acceptance is always
- * automatic (see that model), there is no separate partner sign-off step.
- */
-const issuePartnerAgreementForAssignment = async (partner, assignment, adminUserId) => {
-  const file = await generatePartnerAgreementFile(partner);
-
-  const document = await PartnerDocument.create({
-    partnerId: partner._id,
-    documentType: "partner_agreement",
-    file,
-    verification: {
-      status: "verified",
-      verifiedBy: adminUserId,
-      verifiedAt: new Date()
-    }
-  });
-
-  const priorVersions = await PartnerAgreementAcceptance.countDocuments({ partnerId: partner._id });
-  const version = priorVersions + 1;
-
-  const acceptance = await PartnerAgreementAcceptance.create({
-    partnerId: partner._id,
-    documentId: document._id,
-    commissionAssignmentId: assignment._id,
-    agreementRef: `SPX-AGR-${partner.partnerCode}-v${version}`,
-    version,
-    acceptedBy: "system_auto",
-    acceptedAt: new Date()
-  });
-
-  return { document, acceptance };
-};
-
-module.exports = { generatePartnerAgreementFile, attachPartnerAgreement, issuePartnerAgreementForAssignment };
+module.exports = { generatePartnerAgreementFile, attachPartnerAgreement };

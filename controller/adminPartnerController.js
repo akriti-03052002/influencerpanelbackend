@@ -1,12 +1,10 @@
 const bcrypt = require("bcryptjs");
 
 const { Partner, PartnerDocument, PartnerBankAccount, PartnerUser, PartnerNotification } = require("../models/Index");
-const PartnerCommissionAssignment = require("../models/PartnerCommissionAssignment");
 const { generatePartnerCode } = require("../utils/generateCode");
 const { ROLE_PERMISSIONS } = require("../config/roles");
-const { COMMISSION_TYPES } = require("../config/constant");
 const logActivity = require("../utils/logActivity");
-const { attachPartnerAgreement, issuePartnerAgreementForAssignment } = require("../services/generatePartnerAgreement");
+const { attachPartnerAgreement } = require("../services/generatePartnerAgreement");
 const { getRequiredDocumentTypes } = require("../utils/partnerVerification");
 const { sendMail } = require("../utils/mailer");
 const { holdSettlementsForPartner } = require("../utils/settlementHold");
@@ -224,9 +222,7 @@ const updatePartnerStatus = async (req, res) => {
       });
     }
 
-    // Vendors get their agreement from assignCustomCommission instead, once
-    // the admin sets their commission; every other type gets one on activation.
-    if (status === "active" && partner.partnerType !== "vendor") {
+    if (status === "active") {
       await attachPartnerAgreement(partner, req.adminUser._id);
     }
 
@@ -260,92 +256,6 @@ const updatePartnerStatus = async (req, res) => {
   }
 };
 
-// Vendor-only: a custom, per-partner commission set directly by the
-// admin (type + rate/amount).
-// Setting this is what actually generates the Partner Agreement: any
-// prior assignment is superseded (kept on record, not deleted — see the
-// model), a fresh assignment is created, and a reissued agreement is
-// immediately filed and auto-accepted on the partner's behalf.
-const assignCustomCommission = async (req, res) => {
-  try {
-    const {
-      commissionType, rate, fixedAmount, perScreenAmount, hybrid,
-      calculationBase, recurring, minimumSettlementAmount, notes
-    } = req.body;
-
-    if (!COMMISSION_TYPES.includes(commissionType)) {
-      return res.status(400).json({ success: false, message: "A valid commission type is required." });
-    }
-
-    const partner = await Partner.findById(req.params.id);
-    if (!partner) {
-      return res.status(404).json({ success: false, message: "Partner not found." });
-    }
-
-    if (partner.partnerType !== "vendor") {
-      return res.status(400).json({ success: false, message: "Custom commission assignment is only available for vendor partners." });
-    }
-
-    await PartnerCommissionAssignment.updateMany(
-      { partnerId: partner._id, status: "active" },
-      { $set: { status: "superseded" } }
-    );
-
-    const assignment = await PartnerCommissionAssignment.create({
-      partnerId: partner._id,
-      commissionType,
-      rate: rate || 0,
-      fixedAmount: fixedAmount || 0,
-      perScreenAmount: perScreenAmount || 0,
-      hybrid: hybrid || undefined,
-      calculationBase: calculationBase || "net_revenue",
-      recurring: recurring || undefined,
-      minimumSettlementAmount: minimumSettlementAmount || 0,
-      notes: notes || "",
-      status: "active",
-      assignedBy: req.adminUser._id,
-      assignedAt: new Date()
-    });
-
-    const { document, acceptance } = await issuePartnerAgreementForAssignment(partner, assignment, req.adminUser._id);
-
-    await logActivity({
-      partnerId: partner._id,
-      performedByType: "spotx_user",
-      performedByUserId: req.adminUser._id,
-      activityType: "commission_assigned",
-      entityType: "Partner",
-      entityId: partner._id,
-      description: `${req.adminUser.name} set this partner's commission (${commissionType}) and issued agreement ${acceptance.agreementRef}.`,
-      req
-    });
-
-    await PartnerNotification.create({
-      partnerId: partner._id,
-      type: "partner_agreement_issued",
-      title: "Your commission terms are set",
-      message: `SPOTX has set your commission terms. Your Partner Agreement (${acceptance.agreementRef}) has been generated and is automatically accepted.`,
-      entity: { type: "Partner", entityId: partner._id }
-    }).catch((error) => console.error("assignCustomCommission: notification failed:", error.message));
-
-    return res.json({
-      success: true,
-      message: "Commission assigned — agreement issued and accepted.",
-      data: { assignment, document, acceptance }
-    });
-  } catch (error) {
-    console.error("assignCustomCommission error:", error);
-    return res.status(500).json({ success: false, message: "Something went wrong assigning commission." });
-  }
-};
-
-const getCommissionAssignment = async (req, res) => {
-  const active = await PartnerCommissionAssignment.findOne({ partnerId: req.params.id, status: "active" }).sort({ assignedAt: -1 });
-  const history = await PartnerCommissionAssignment.find({ partnerId: req.params.id }).sort({ assignedAt: -1 });
-  return res.json({ success: true, data: { active: active || null, history } });
-};
-
 module.exports = {
-  createPartner, listPartners, getPartner, updatePartnerStatus,
-  assignCustomCommission, getCommissionAssignment
+  createPartner, listPartners, getPartner, updatePartnerStatus
 };
