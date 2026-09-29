@@ -364,7 +364,7 @@ const getSettlementDetail = async (req, res) => {
     .populate("partnerId", "partnerCode legalEntity.businessName")
     .populate({
       path: "commissionIds",
-      select: "transaction.invoiceNumber transaction.revenue calculation.netCommission createdAt"
+      select: "description transaction.invoiceNumber transaction.revenue calculation.netCommission createdAt"
     })
     .lean();
 

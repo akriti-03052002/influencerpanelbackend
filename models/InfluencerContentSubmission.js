@@ -42,7 +42,9 @@ const InfluencerContentSubmissionSchema = new Schema(
     payment: {
       amount: { type: Number, min: 0, default: 0 },
       currency: { type: String, default: "INR" },
-      status: { type: String, enum: ["not_assigned", "approved"], default: "not_assigned" }
+      status: { type: String, enum: ["not_assigned", "approved"], default: "not_assigned" },
+      // The ledger row that carries this payment into settlements.
+      commissionId: { type: Schema.Types.ObjectId, ref: "PartnerCommission" }
     },
     ownershipConfirmed: { type: Boolean, default: false },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },

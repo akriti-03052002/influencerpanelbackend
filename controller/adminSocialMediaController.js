@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Partner, InfluencerContentSubmission, PartnerNotification } = require("../models/Index");
 const { reissuePartnerAgreement } = require("../services/generatePartnerAgreement");
+const { recordContentPayment } = require("../services/contentPayment");
 
 const listAccounts = async (req, res) => {
   const partners = await Partner.find({
@@ -207,6 +208,20 @@ const reviewSubmission = async (req, res) => {
     submission.reviewedBy = req.adminUser._id;
     submission.reviewedAt = new Date();
     await submission.save();
+
+    // Approval is what makes the money owed: record it on the earnings
+    // ledger so it appears in Settlements, ready to be paid out.
+    if (decision === "approved") {
+      await recordContentPayment(submission, { accountLabel: account.username || account.accountId });
+      await PartnerNotification.create({
+        partnerId: submission.partnerId,
+        type: "content_approved",
+        title: `${submission.contentType === "reel" ? "Reel" : "Post"} approved`,
+        message: `Your ${submission.contentType} was approved — ₹${submission.payment.amount.toLocaleString("en-IN")} added to your earnings.`,
+        entity: { type: "InfluencerContentSubmission", entityId: submission._id }
+      }).catch((notifyError) => console.error("reviewSubmission: notification failed:", notifyError.message));
+    }
+
     return res.json({ success: true, message: `Submission ${decision}.`, data: submission });
   } catch (error) {
     console.error("reviewSubmission error:", error);

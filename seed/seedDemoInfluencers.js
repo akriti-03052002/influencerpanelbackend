@@ -31,8 +31,11 @@ const {
   PartnerActivity,
   PartnerNotification,
   User,
-  InfluencerContentSubmission
+  InfluencerContentSubmission,
+  PartnerCommission,
+  PartnerSettlement
 } = require("../models/Index");
+const { recordContentPayment } = require("../services/contentPayment");
 const { encrypt, maskAccountNumber, maskIfsc } = require("../utils/encryption");
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const normalizeContentUrl = require("../utils/normalizeContentUrl");
@@ -153,7 +156,9 @@ const wipeExistingDemo = async () => {
     PartnerBankAccount.deleteMany({ partnerId: { $in: ids } }),
     PartnerActivity.deleteMany({ partnerId: { $in: ids } }),
     PartnerNotification.deleteMany({ partnerId: { $in: ids } }),
-    InfluencerContentSubmission.deleteMany({ partnerId: { $in: ids } })
+    InfluencerContentSubmission.deleteMany({ partnerId: { $in: ids } }),
+    PartnerCommission.deleteMany({ partnerId: { $in: ids } }),
+    PartnerSettlement.deleteMany({ partnerId: { $in: ids } })
   ]);
   await Partner.deleteMany({ _id: { $in: ids } });
   console.log(`Removed ${ids.length} existing demo influencer partner(s) and their data.`);
@@ -212,7 +217,8 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
     },
     stats: {
       totalCommission: approvedEarnings,
-      approvedCommission: approvedEarnings
+      approvedCommission: approvedEarnings,
+      pendingCommission: approvedEarnings
     },
     status: spec.status
   });
@@ -295,6 +301,10 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
     });
     await InfluencerContentSubmission.collection.updateOne({ _id: sub._id }, { $set: { createdAt: daysAgo(p.age) } });
     submissions.push({ sub, spec: p });
+    // Approved content is owed money — put it on the earnings ledger so it
+    // shows up in Settlements. Stats were already set above.
+    // eslint-disable-next-line no-await-in-loop
+    if (approved) await recordContentPayment(sub, { accountLabel: account.username || account.accountId, updateStats: false });
   }
 
   // Activity log.

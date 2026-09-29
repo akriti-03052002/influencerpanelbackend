@@ -78,7 +78,7 @@ const getSettlementDetail = async (req, res) => {
     partnerId: req.partner._id
   }).populate({
     path: "commissionIds",
-    select: "transaction.invoiceNumber transaction.revenue calculation.netCommission createdAt"
+    select: "description transaction.invoiceNumber transaction.revenue calculation.netCommission createdAt"
   });
 
   if (!settlement) {

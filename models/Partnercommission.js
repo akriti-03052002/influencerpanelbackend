@@ -19,6 +19,18 @@ const PartnerCommissionSchema = new Schema(
       index: true
     },
 
+    // The approved post/reel this payment is for. Unique so approving can
+    // never create two payments for the same piece of content.
+    submissionId: {
+      type: ObjectId,
+      ref: "InfluencerContentSubmission",
+      unique: true,
+      sparse: true
+    },
+
+    // Human-readable line shown in settlements, e.g. "Instagram reel · @handle".
+    description: { type: String, default: "" },
+
     /* TRANSACTION */
     transaction: {
       invoiceNumber: { type: String, default: "" },
