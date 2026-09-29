@@ -145,8 +145,7 @@ const upsertBankAccount = async (req, res) => {
   }
 };
 
-// Step 1: opens a ₹1 Razorpay Order (test mode during dev — same
-// credentials/flow as the customer subscription checkout) for the partner
+// Step 1: opens a ₹1 Razorpay Order (test mode during dev) for the partner
 // to pay via the Checkout popup on the frontend. Paying it is what proves
 // the account is real and lets Razorpay tell us which bank it went
 // through (for netbanking) — see confirmBankVerification for what happens
@@ -221,9 +220,8 @@ const initiateBankVerification = async (req, res) => {
 };
 
 // Step 2: called by the partner's browser right after the Razorpay
-// Checkout popup reports success — same "verify signature, then
-// independently re-fetch from Razorpay before trusting it" shape as
-// customerSubscriptionController.verifyCheckoutPayment. Only once this (or
+// Checkout popup reports success — verifies the signature, then
+// independently re-fetches from Razorpay before trusting it. Only once this (or
 // the payment.captured webhook safety net) confirms a real captured ₹1
 // payment does razorpayCheck get filled in — never on the strength of the
 // popup's own success callback alone.
@@ -293,8 +291,7 @@ const confirmBankVerification = async (req, res) => {
 };
 
 // Best-effort record of a declined/abandoned Checkout attempt (card
-// declined, popup closed, etc) — mirrors
-// customerSubscriptionController.recordCheckoutFailure. No money moved, so
+// declined, popup closed, etc). No money moved, so
 // this never affects eligibility on its own; it just keeps the partner's
 // status honest instead of stuck on "pending" indefinitely.
 const recordBankVerificationFailure = async (req, res) => {

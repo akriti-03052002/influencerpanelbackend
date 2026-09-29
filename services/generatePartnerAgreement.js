@@ -103,7 +103,6 @@ const SCOPE_BY_PARTNER_TYPE = {
   influencer: "The Partner will promote SPOTX to its audience and refer prospective customers and leads to SPOTX in exchange for the commission described in Section 5 below.",
   referral: "The Partner will make bona fide introductions of prospective customers to SPOTX in exchange for a referral fee as described in Section 5 below.",
   agency: "The Partner will represent and refer SPOTX's platform to its own client base under the arrangement configured in the SPOTX Partner Panel.",
-  reseller: "The Partner will purchase SPOTX screen software licenses in bulk, at the pricing (a discount off SPOTX's standard rate, or a flat negotiated rate) set out in this agreement, and will be billed on the agreed billing cycle for its total purchased licenses regardless of usage. The Partner will resell those licenses bundled with its own screen hardware to its own end-customers, under its own commercial terms; SPOTX has no involvement in, or visibility into, that resale transaction.",
   technology: "The Partner will integrate, bundle, or otherwise technically collaborate with SPOTX's platform under the arrangement configured in the SPOTX Partner Panel.",
   strategic: "The Partner will collaborate with SPOTX under a strategic partnership arrangement as configured in the SPOTX Partner Panel."
 };

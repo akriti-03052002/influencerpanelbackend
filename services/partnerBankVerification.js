@@ -4,9 +4,8 @@ const { PartnerNotification } = require("../models/Index");
    PARTNER BANK VERIFICATION — ₹1 CHECKOUT PAYMENT
    Shared between partnerBankController.confirmBankVerification (the
    browser calling back right after Razorpay Checkout succeeds) and
-   razorpayWebhookController (the payment.captured safety net) — same
-   "verify twice, apply once, idempotently" shape as
-   services/customerPaymentFulfillment.js.
+   razorpayWebhookController (the payment.captured safety net) — verified
+   twice, applied once, idempotently.
 
    Test-mode Checkout can't hand back a real bank account number/IFSC to
    cross-check (that needs RazorpayX Fund Account Validation, a separate

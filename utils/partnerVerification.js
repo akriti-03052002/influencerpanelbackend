@@ -2,7 +2,7 @@ const { PartnerDocument, PartnerBankAccount } = require("../models/Index");
 
 /**
  * Which KYC documents are compulsory before a partner can be verified,
- * per partnerType. Business-entity types (Vendor, Reseller, Agency,
+ * per partnerType. Business-entity types (Vendor, Agency,
  * Technology, Strategic) need full business KYC since they invoice SPOTX
  * and move real commercial volume. Individual-oriented types (Affiliate,
  * Influencer, Referral) are frequently a single person, not a registered
@@ -17,7 +17,6 @@ const { PartnerDocument, PartnerBankAccount } = require("../models/Index");
  */
 const REQUIRED_DOCUMENTS_BY_PARTNER_TYPE = {
   vendor: ["msme_udyam", "gst_certificate", "pan_card", "cancelled_cheque"],
-  reseller: ["msme_udyam", "gst_certificate", "pan_card", "cancelled_cheque"],
   agency: ["msme_udyam", "gst_certificate", "pan_card", "cancelled_cheque"],
   technology: ["msme_udyam", "gst_certificate", "pan_card", "cancelled_cheque"],
   strategic: ["msme_udyam", "gst_certificate", "pan_card", "cancelled_cheque"],

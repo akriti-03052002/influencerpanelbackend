@@ -51,24 +51,7 @@ const PartnerActivitySchema = new Schema(
 
         "status_changed",
 
-        "note",
-
-        // Reseller-only activity types.
-        "license_purchased",
-        "license_allocated",
-        "license_released",
-        "license_adjusted",
-        "screen_registered",
-        "screen_activated",
-        "screen_suspended",
-        "screen_reactivated",
-        "license_cancelled",
-        "reseller_customer_created",
-        "reseller_customer_cancelled",
-        "reseller_invoice_generated",
-        "reseller_payment_success",
-        "reseller_payment_failed",
-        "reseller_agreement_expiring"
+        "note"
       ],
       required: true
     },

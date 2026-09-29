@@ -1,9 +1,5 @@
 const { PartnerBankAccount } = require("../models/Index");
-const ScreenLicensePurchaseOrder = require("../models/ScreenLicensePurchaseOrder");
-const ResellerInvoice = require("../models/ResellerInvoice");
 const { applyBankVerificationPayment } = require("../services/partnerBankVerification");
-const { applyPaidLicenseOrder, markLicenseOrderFailed } = require("../services/resellerLicenseOrderFulfillment");
-const { applyPaidInvoice, markInvoicePaymentFailed } = require("../services/resellerInvoicePaymentFulfillment");
 const { verifyWebhookSignature } = require("../utils/razorpay");
 
 /* ============================================================
@@ -27,11 +23,9 @@ const { verifyWebhookSignature } = require("../utils/razorpay");
      URL: <your API base>/api/webhooks/razorpay
      Secret: same value as RAZORPAY_WEBHOOK_SECRET in .env
      Events: payment.captured, payment.failed
-     Payments are told apart by payment.notes.purpose:
-     "partner_bank_verification" (the partner's ₹1 bank check, see
-     partnerBankController.initiateBankVerification), and the two Reseller
-     purposes "reseller_license_purchase" and "reseller_invoice_payment"
-     (see partnerLicenseOrderController and partnerResellerBillingController).
+     Only the partner's ₹1 bank verification payment
+     (payment.notes.purpose === "partner_bank_verification", see
+     partnerBankController.initiateBankVerification) is handled here.
 ============================================================ */
 
 const handleRazorpayWebhook = async (req, res) => {
@@ -60,22 +54,6 @@ const handleRazorpayWebhook = async (req, res) => {
         }
         return res.json({ success: true });
       }
-
-      if (payment.notes?.purpose === "reseller_license_purchase") {
-        const purchaseOrder = await ScreenLicensePurchaseOrder.findOne({ "razorpay.orderId": payment.order_id });
-        if (purchaseOrder && payment.amount === Math.round(purchaseOrder.pricing.totalAmount * 100)) {
-          await applyPaidLicenseOrder(purchaseOrder._id, { razorpayPaymentId: payment.id, method: payment.method });
-        }
-        return res.json({ success: true });
-      }
-
-      if (payment.notes?.purpose === "reseller_invoice_payment") {
-        const invoice = await ResellerInvoice.findOne({ "razorpay.orderId": payment.order_id });
-        if (invoice && payment.amount === Math.round(invoice.total * 100)) {
-          await applyPaidInvoice(invoice._id, { razorpayPaymentId: payment.id });
-        }
-        return res.json({ success: true });
-      }
     } else if (event.event === "payment.failed") {
       const payment = event.payload?.payment?.entity;
       if (!payment?.order_id) return res.json({ success: true });
@@ -90,23 +68,6 @@ const handleRazorpayWebhook = async (req, res) => {
             }
           }
         );
-        return res.json({ success: true });
-      }
-
-      if (payment.notes?.purpose === "reseller_license_purchase") {
-        const purchaseOrder = await ScreenLicensePurchaseOrder.findOne({ "razorpay.orderId": payment.order_id });
-        if (purchaseOrder) {
-          await markLicenseOrderFailed(purchaseOrder._id, {
-            failureCode: payment.error_code,
-            failureReason: payment.error_description
-          });
-        }
-        return res.json({ success: true });
-      }
-
-      if (payment.notes?.purpose === "reseller_invoice_payment") {
-        const invoice = await ResellerInvoice.findOne({ "razorpay.orderId": payment.order_id });
-        if (invoice) await markInvoicePaymentFailed(invoice._id);
         return res.json({ success: true });
       }
     }

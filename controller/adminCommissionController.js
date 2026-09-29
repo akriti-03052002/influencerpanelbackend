@@ -101,7 +101,7 @@ const holdCommission = async (req, res) => {
   }
 };
 
-// Full reversal (e.g. the underlying customer payment was refunded). Can't
+// Full reversal (e.g. the underlying payment was refunded). Can't
 // touch a commission that's already bundled into a not-yet-paid settlement —
 // that batch's totals would go stale — so those must be pulled out at the
 // settlement level first.

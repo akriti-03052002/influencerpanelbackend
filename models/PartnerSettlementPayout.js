@@ -5,8 +5,7 @@ const ObjectId = Schema.Types.ObjectId;
 /* ============================================================
    PARTNER SETTLEMENT PAYOUT (RazorpayX automated payout attempt)
    Only created when an admin chooses "Pay via RazorpayX" instead of the
-   offline or Razorpay-verify paths — mirrors how CustomerPayment tracks
-   the customer-side Razorpay transaction. One row per payout attempt;
+   offline or Razorpay-verify paths. One row per payout attempt;
    status mirrors RazorpayX's own payout status vocabulary so a webhook
    (payout.processed / payout.reversed / payout.failed — see
    controller/razorpayWebhookController.js) can update it directly.

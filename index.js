@@ -31,7 +31,6 @@ const adminConfigRoutes = require("./router/adminConfigRoutes");
 const adminCommissionRoutes = require("./router/adminCommissionRoutes");
 const adminSettlementRoutes = require("./router/adminSettlementRoutes");
 const adminStatsRoutes = require("./router/adminStatsRoutes");
-const adminResellerRoutes = require("./router/adminResellerRoutes");
 const adminSocialMediaRoutes = require("./router/adminSocialMediaRoutes");
 
 const app = express();
@@ -108,7 +107,6 @@ app.use("/api/admin/config", adminAuthMiddleware, adminConfigRoutes);
 app.use("/api/admin/commissions", adminAuthMiddleware, adminCommissionRoutes);
 app.use("/api/admin/settlements", adminAuthMiddleware, adminSettlementRoutes);
 app.use("/api/admin/stats", adminAuthMiddleware, adminStatsRoutes);
-app.use("/api/admin/reseller", adminAuthMiddleware, adminResellerRoutes);
 app.use("/api/admin/social-media", adminAuthMiddleware, adminSocialMediaRoutes);
 
 /* ==========================================

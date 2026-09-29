@@ -34,7 +34,6 @@ const {
   InfluencerContentSubmission
 } = require("../models/Index");
 const { encrypt, maskAccountNumber, maskIfsc } = require("../utils/encryption");
-const { generateReferralCode } = require("../utils/generateCode");
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const normalizeContentUrl = require("../utils/normalizeContentUrl");
 
@@ -165,15 +164,6 @@ const wipeExistingDemo = async () => {
   console.log(`Removed ${ids.length} existing demo influencer partner(s) and their data.`);
 };
 
-const uniqueReferralCode = async () => {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const candidate = generateReferralCode();
-    // eslint-disable-next-line no-await-in-loop
-    if (!(await Partner.exists({ "referral.referralCode": candidate }))) return candidate;
-  }
-  return undefined;
-};
-
 const seedAdmin = async () => {
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
   const admin = await User.findOneAndUpdate(
@@ -188,8 +178,6 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
   const email = emailFor(spec.key);
   const joinedAt = daysAgo(spec.joined);
   const verified = spec.status === "active";
-  const referralCode = await uniqueReferralCode();
-  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
   const reviewedFor = (status) => (status === "pending" ? {} : { reviewedBy: admin._id, reviewedAt: daysAgo(Math.max(1, spec.joined - 3)) });
 
@@ -222,7 +210,6 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
     influencerPaymentRates: spec.rates
       ? { ...spec.rates, currency: "INR", updatedBy: admin._id, updatedAt: daysAgo(spec.joined - 5) }
       : undefined,
-    referral: referralCode ? { referralCode, referralLink: `${clientUrl}/partner/register?ref=${referralCode}` } : undefined,
     verification: {
       overallStatus: spec.kyc,
       ...(verified ? { verifiedBy: admin._id, verifiedAt: daysAgo(spec.joined - 4) } : {}),

@@ -19,11 +19,6 @@ const PartnerCommissionSchema = new Schema(
       index: true
     },
 
-    customerId: {
-      type: ObjectId,
-      ref: "Customer"
-    },
-
     commissionRuleId: {
       type: ObjectId,
       ref: "CommissionRule"
@@ -31,7 +26,6 @@ const PartnerCommissionSchema = new Schema(
 
     /* TRANSACTION */
     transaction: {
-      invoiceId: { type: ObjectId, ref: "Invoice" },
       invoiceNumber: { type: String, default: "" },
       revenue: { type: Number, default: 0 },
       screenCount: { type: Number, default: 0 },

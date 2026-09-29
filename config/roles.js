@@ -23,17 +23,7 @@ const ALL_PARTNER_PERMISSIONS = [
 
   "settlements:view",
 
-  "notifications:view",
-
-  // Reseller-only — meaningless for every other partnerType, but not
-  // gated by OWNER_ONLY_PERMISSIONS (KYC/bank stay the only owner-only
-  // gate; these follow a view/manage split).
-  "reseller:inventory:view",
-  "reseller:license:purchase",
-  "reseller:customers:manage",
-  "reseller:allocation:manage",
-  "reseller:billing:view",
-  "reseller:billing:pay"
+  "notifications:view"
 ];
 
 /*
@@ -54,22 +44,13 @@ const ROLE_PERMISSIONS = {
     "profile:update",
     "commissions:view",
     "settlements:view",
-    "notifications:view",
-    "reseller:inventory:view",
-    "reseller:license:purchase",
-    "reseller:customers:manage",
-    "reseller:allocation:manage",
-    "reseller:billing:view",
-    "reseller:billing:pay"
+    "notifications:view"
   ],
 
   sales: [
     "dashboard:view",
     "profile:view",
-    "notifications:view",
-    "reseller:inventory:view",
-    "reseller:customers:manage",
-    "reseller:allocation:manage"
+    "notifications:view"
   ],
 
   finance: [
@@ -77,17 +58,12 @@ const ROLE_PERMISSIONS = {
     "profile:view",
     "commissions:view",
     "settlements:view",
-    "notifications:view",
-    "reseller:inventory:view",
-    "reseller:billing:view",
-    "reseller:billing:pay"
+    "notifications:view"
   ],
 
   viewer: [
     "dashboard:view",
     "profile:view",
-    "reseller:inventory:view",
-    "reseller:billing:view",
     "commissions:view",
     "settlements:view",
     "notifications:view"

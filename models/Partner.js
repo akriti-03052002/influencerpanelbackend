@@ -127,21 +127,6 @@ const PartnerSchema = new Schema(
       updatedAt: { type: Date }
     },
 
-    /* REFERRAL */
-    referral: {
-      referralCode: {
-        type: String,
-        unique: true,
-        sparse: true,
-        index: true,
-        uppercase: true
-      },
-      referralLink: {
-        type: String,
-        default: ""
-      }
-    },
-
     /* VERIFICATION STATUS */
     verification: {
       overallStatus: {

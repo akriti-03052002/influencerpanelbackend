@@ -10,10 +10,6 @@ module.exports = {
   PartnerActivity: require("./Partneractivity"),
   PartnerNotification: require("./Partnernotification"),
   User: require("./User"),
-  Customer: require("./Customer"),
-  Invoice: require("./Invoice"),
   EmailOtp: require("./EmailOtp"),
-  Screen: require("./Screen"),
-  ScreenPricing: require("./ScreenPricing"),
   InfluencerContentSubmission: require("./InfluencerContentSubmission")
 };

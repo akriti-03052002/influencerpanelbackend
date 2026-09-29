@@ -6,15 +6,15 @@ const { getRazorpayCredentials } = require("./paymentGatewayConfig");
    RAZORPAY
    - fetchPaymentById: read-only lookup, used to treat Razorpay as the
      source of truth for whether a payment is real/captured. Used both by
-     the customer subscription checkout (double-check after signature
+     the partner's ₹1 bank verification (double-check after signature
      verification) and adminSettlementController's manual payout lookup.
    - createOrder / verifyPaymentSignature / verifyWebhookSignature: the
-     customer subscription checkout flow — an order is created for the
-     GST-inclusive total, the customer pays it via the Razorpay Checkout
-     popup, and the result is verified two independent ways before
-     anything is activated: the HMAC signature Checkout hands back, and a
-     fetchPaymentById re-check that it's actually captured for the right
-     amount (see services/customerPaymentFulfillment.js).
+     ₹1 bank verification Checkout flow — an order is created, the partner
+     pays it via the Razorpay Checkout popup, and the result is verified
+     two independent ways before anything is applied: the HMAC signature
+     Checkout hands back, and a fetchPaymentById re-check that it's
+     actually captured for the right amount (see
+     services/partnerBankVerification.js).
 
    Credentials are resolved fresh on every call via
    utils/paymentGatewayConfig (admin-panel DB config, falling back to

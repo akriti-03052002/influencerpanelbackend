@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const { Partner, PartnerUser, EmailOtp } = require("../models/Index");
-const { generatePartnerCode, generateReferralCode } = require("../utils/generateCode");
+const { generatePartnerCode } = require("../utils/generateCode");
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const logActivity = require("../utils/logActivity");
 const { sendMail } = require("../utils/mailer");
@@ -175,39 +175,10 @@ const registerPartner = async (req, res) => {
 
     const partnerCode = generatePartnerCode();
 
-    let referralCode;
-    {
-      // Only 4 characters wide (~1.1M combinations) — check for a
-      // collision before committing to one instead of relying on the
-      // unique index to reject it after the fact.
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const candidate = generateReferralCode();
-        // eslint-disable-next-line no-await-in-loop
-        const taken = await Partner.exists({ "referral.referralCode": candidate });
-        if (!taken) {
-          referralCode = candidate;
-          break;
-        }
-      }
-
-      if (!referralCode) {
-        return res.status(500).json({
-          success: false,
-          message: "Could not generate a unique referral code right now. Please try again."
-        });
-      }
-    }
-
     const partner = await Partner.create({
       partnerCode,
       partnerType: "influencer",
       primaryContact: { name: contactName, email: email.toLowerCase().trim(), phone },
-      referral: referralCode
-        ? {
-            referralCode,
-            referralLink: `${process.env.CLIENT_URL || "http://localhost:5173"}/partner/register?ref=${referralCode}`
-          }
-        : undefined,
       verification: { overallStatus: "not_submitted" },
       status: "draft"
     });

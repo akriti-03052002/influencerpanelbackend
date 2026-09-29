@@ -30,20 +30,7 @@ const COMMISSION_TYPES = [
   "recurring_percentage",
   "recurring_fixed",
   "hybrid"
-  // "wholesale_discount" removed — Reseller partners no longer earn a
-  // commission at all. They purchase licenses from SPOTX and are billed
-  // for it instead; see backend/models/ResellerPricingPlan.js and
-  // backend/models/ResellerInvoice.js.
 ];
-
-// Reseller-only: which side of the license-purchase-vs-pricing rate a
-// Reseller partner is on, set per partner by superadmin from their signed
-// agreement — see backend/models/ResellerPricingPlan.js.
-const RESELLER_PRICING_MODES = ["discount_percent", "fixed_price"];
-
-// Reseller-only: how often SPOTX bills a Reseller partner for their total
-// purchased licenses (never based on usage) — set per partner's agreement.
-const RESELLER_BILLING_CYCLES = ["monthly", "quarterly", "yearly"];
 
 const SETTLEMENT_TYPES = [
   "monthly",
@@ -52,16 +39,8 @@ const SETTLEMENT_TYPES = [
   "manual"
 ];
 
-// How long a customer's prepaid subscription term runs, in months — chosen
-// at subscribe/renew time (see customerSubscriptionController.js). Price
-// scales with this: screenCount × plan rate per screen × durationMonths.
-const SUBSCRIPTION_DURATIONS = [1, 3, 6, 12];
-
-// GST charged on top of the base subscription amount, applied in
-// customerSubscriptionController before creating a Razorpay order. 18% is
-// the standard India GST slab for SaaS/software services. Kept as a plain
-// constant (not stored on ScreenPricing) so this pass doesn't touch any
-// existing model.
+// GST rate (18%, the standard India slab for services) used when
+// computing settlement bills — see partnerSettlementBillController.
 const GST_RATE_PERCENT = 18;
 
 // Why a settlement is on_hold. Objective codes (bank_unverified,
@@ -83,10 +62,7 @@ module.exports = {
   PARTNER_STATUS,
   VERIFICATION_STATUS,
   COMMISSION_TYPES,
-  RESELLER_PRICING_MODES,
-  RESELLER_BILLING_CYCLES,
   SETTLEMENT_TYPES,
   SETTLEMENT_HOLD_CODES,
-  SUBSCRIPTION_DURATIONS,
   GST_RATE_PERCENT
 };
