@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { Partner } = require("../models/Index");
 const { encrypt } = require("../utils/encryption");
-const { fetchInstagramProfile, expiryFrom, syncSocialAccount } = require("../services/socialSync");
+const { fetchInstagramProfile, fetchYouTubeChannel, expiryFrom, syncSocialAccount } = require("../services/socialSync");
 
 const FRONTEND_URL = process.env.CLIENT_URL || "http://localhost:5183";
 const META_VERSION = process.env.META_GRAPH_VERSION || "v21.0";
@@ -79,7 +79,12 @@ const startConnection = (req, res) => {
   // Instagram can drop them on their home feed after they log in instead
   // of continuing to the "Allow" screen and back to us.
   if (platform === "instagram") params.set("force_reauth", "true");
-  if (platform === "youtube") params.set("access_type", "offline");
+  // offline + consent makes Google hand back a refresh token every time, so
+  // the channel can be re-synced later without the influencer logging in.
+  if (platform === "youtube") {
+    params.set("access_type", "offline");
+    params.set("prompt", "consent");
+  }
   return res.json({ success: true, url: `${provider.authUrl}?${params.toString()}` });
 };
 
@@ -136,6 +141,7 @@ const callback = async (req, res) => {
     // Instagram sometimes wraps the token response in a data array.
     let accessToken = token.access_token || token.data?.[0]?.access_token;
     let tokenExpiresAt;
+    let refreshToken;
     let account;
 
     if (platform === "instagram") {
@@ -146,10 +152,9 @@ const callback = async (req, res) => {
       tokenExpiresAt = expiryFrom(longLived.expires_in);
       account = await fetchInstagramProfile(accessToken);
     } else if (platform === "youtube") {
-      const data = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      const item = data.items?.[0];
-      if (!item) throw new Error("No YouTube channel was found for this account.");
-      account = { accountId: item.id, username: item.snippet?.title || "", followers: Number(item.statistics?.subscriberCount || 0) };
+      refreshToken = token.refresh_token;
+      tokenExpiresAt = expiryFrom(token.expires_in);
+      account = await fetchYouTubeChannel(accessToken);
     } else {
       // A Page token obtained from a long-lived user token never expires, so
       // it's what gets stored for later refreshes. A user token's /me is the
@@ -166,7 +171,7 @@ const callback = async (req, res) => {
 
     // Loaded with the stored tokens so re-saving the array doesn't drop the
     // tokens of the partner's other connected accounts.
-    const partner = await Partner.findById(state.partnerId).select("+socialAccounts.accessTokenEncrypted");
+    const partner = await Partner.findById(state.partnerId).select("+socialAccounts.accessTokenEncrypted +socialAccounts.refreshTokenEncrypted");
     if (!partner) throw new Error("Influencer account not found.");
 
     const connection = {
@@ -176,7 +181,8 @@ const callback = async (req, res) => {
       lastSyncedAt: new Date(),
       syncError: "",
       accessTokenEncrypted: encrypt(accessToken),
-      tokenExpiresAt
+      tokenExpiresAt,
+      ...(refreshToken ? { refreshTokenEncrypted: encrypt(refreshToken) } : {})
     };
     // Reconnecting the same account (e.g. after revoking access) keeps its
     // review status; a different account replaces it and goes back to review.

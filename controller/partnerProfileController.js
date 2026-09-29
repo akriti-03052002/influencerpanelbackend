@@ -28,7 +28,7 @@ const updateProfile = async (req, res) => {
 
     // Loaded with the stored social tokens so rebuilding socialAccounts below
     // doesn't silently disconnect accounts linked through Instagram/Facebook.
-    const partner = await Partner.findById(req.partner._id).select("+socialAccounts.accessTokenEncrypted");
+    const partner = await Partner.findById(req.partner._id).select("+socialAccounts.accessTokenEncrypted +socialAccounts.refreshTokenEncrypted");
 
     if (businessName) partner.legalEntity.businessName = businessName;
     if (legalName !== undefined) partner.legalEntity.legalName = legalName;

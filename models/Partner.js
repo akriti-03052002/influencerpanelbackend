@@ -114,6 +114,8 @@ const PartnerSchema = new Schema(
       // access) — cleared on the next successful sync.
       syncError: { type: String, default: "" },
       accessTokenEncrypted: { type: String, select: false },
+      // YouTube only: Google's long-lived key for minting new access tokens.
+      refreshTokenEncrypted: { type: String, select: false },
       // When the stored token stops working; unset for tokens that don't
       // expire (Facebook Page tokens).
       tokenExpiresAt: { type: Date }
