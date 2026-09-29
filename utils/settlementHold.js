@@ -20,10 +20,10 @@ const { getRequiredDocumentTypes } = require("./partnerVerification");
 const HOLDABLE_STATUSES = ["draft", "pending_approval", "approved", "processing"];
 
 const HOLD_REASON_LABEL = {
-  bank_unverified: "Partner's bank account is not verified.",
+  bank_unverified: "Influencer's bank account is not verified.",
   bank_change_pending: "Bank details were recently changed and the new account is pending verification.",
-  partner_suspended: "Partner account is suspended.",
-  compliance_review: "Partner account is under compliance review.",
+  partner_suspended: "Influencer account is suspended.",
+  compliance_review: "Influencer account is under compliance review.",
   incomplete_info: "Required settlement/payout information is incomplete.",
   manual: "On hold."
 };
@@ -35,7 +35,7 @@ const checkPartnerPayoutEligibility = async (partnerId) => {
   const partner = await Partner.findById(partnerId);
 
   if (!partner) {
-    return { eligible: false, code: "incomplete_info", reason: "Partner record not found." };
+    return { eligible: false, code: "incomplete_info", reason: "Influencer record not found." };
   }
 
   if (partner.status === "suspended") {
@@ -211,14 +211,14 @@ const releaseSettlementHold = async (settlement, { byUserId, req } = {}) => {
   if (code === "bank_unverified" || code === "bank_change_pending") {
     const bankAccount = await PartnerBankAccount.findOne({ partnerId: settlement.partnerId });
     if (!bankAccount || bankAccount.verification.status !== "verified") {
-      throw new HoldReleaseError("The partner's bank account still isn't verified — verify it before releasing this hold.");
+      throw new HoldReleaseError("The influencer's bank account still isn't verified — verify it before releasing this hold.");
     }
   }
 
   if (code === "partner_suspended") {
     const partner = await Partner.findById(settlement.partnerId);
     if (!partner || partner.status !== "active") {
-      throw new HoldReleaseError("This partner is still suspended — reactivate the partner before releasing this hold.");
+      throw new HoldReleaseError("This influencer is still suspended — reactivate them before releasing this hold.");
     }
   }
 

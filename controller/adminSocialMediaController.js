@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-const { Partner, InfluencerContentSubmission } = require("../models/Index");
+const { Partner, InfluencerContentSubmission, PartnerNotification } = require("../models/Index");
+const { reissuePartnerAgreement } = require("../services/generatePartnerAgreement");
 
 const listAccounts = async (req, res) => {
   const partners = await Partner.find({
@@ -19,34 +20,76 @@ const listAccounts = async (req, res) => {
     followers: account.followers,
     reviewStatus: account.reviewStatus || "pending",
     submittedAt: account.submittedAt,
-    rejectionReason: account.rejectionReason || ""
-    , paymentRates: partner.influencerPaymentRates || { post: 0, reel: 0, currency: "INR" }
+    rejectionReason: account.rejectionReason || "",
+    paymentRates: {
+      post: account.paymentRates?.post || 0,
+      reel: account.paymentRates?.reel || 0,
+      currency: account.paymentRates?.currency || "INR"
+    }
   })));
   return res.json({ success: true, data: accounts });
 };
 
+// Rates are per social account: the same influencer can have very different
+// reach on each platform, so each account is priced on its own.
 const updateRates = async (req, res) => {
   try {
-    const post = Number(req.body.post);
-    const reel = Number(req.body.reel);
+    // A blank box means "this content type isn't paid on this account".
+    const toRate = (value) => (value === "" || value === null || value === undefined ? 0 : Number(value));
+    const post = toRate(req.body.post);
+    const reel = toRate(req.body.reel);
     const currency = String(req.body.currency || "INR").trim().toUpperCase();
 
-    if (!Number.isFinite(post) || post <= 0 || post > 100000000 ||
-        !Number.isFinite(reel) || reel <= 0 || reel > 100000000) {
-      return res.status(400).json({ success: false, message: "Post and reel rates must both be greater than zero and no more than ₹10 crore." });
+    const valid = (n) => Number.isFinite(n) && n >= 0 && n <= 100000000;
+    if (!valid(post) || !valid(reel)) {
+      return res.status(400).json({ success: false, message: "Rates must be between ₹0 and ₹10 crore." });
+    }
+    if (post === 0 && reel === 0) {
+      return res.status(400).json({ success: false, message: "Enter a post rate, a reel rate, or both." });
     }
     if (!/^[A-Z]{3}$/.test(currency)) {
       return res.status(400).json({ success: false, message: "Currency must be a valid three-letter code." });
     }
+    if (!mongoose.Types.ObjectId.isValid(req.params.partnerId) || !mongoose.Types.ObjectId.isValid(req.params.accountId)) {
+      return res.status(400).json({ success: false, message: "Invalid social account." });
+    }
 
-    const partner = await Partner.findOneAndUpdate(
-      { _id: req.params.partnerId, partnerType: "influencer" },
-      { influencerPaymentRates: { post, reel, currency, updatedBy: req.adminUser._id, updatedAt: new Date() } },
-      { new: true, runValidators: true }
-    ).select("influencerPaymentRates");
+    const paymentRates = { post, reel, currency, updatedBy: req.adminUser._id, updatedAt: new Date() };
+    // Positional update so the account's stored login tokens are untouched.
+    const result = await Partner.updateOne(
+      { _id: req.params.partnerId, partnerType: "influencer", "socialAccounts._id": req.params.accountId },
+      { $set: { "socialAccounts.$.paymentRates": paymentRates } }
+    );
 
-    if (!partner) return res.status(404).json({ success: false, message: "Influencer not found." });
-    return res.json({ success: true, message: "Influencer payment rates updated.", data: partner.influencerPaymentRates });
+    if (!result.matchedCount) return res.status(404).json({ success: false, message: "Social account not found." });
+
+    // The agreement is where the influencer's prices are stated, so a price
+    // change reissues it. A failure here mustn't undo the saved rates.
+    let agreementReissued = false;
+    try {
+      const partner = await Partner.findById(req.params.partnerId);
+      const agreement = await reissuePartnerAgreement(partner, req.adminUser._id);
+      if (agreement) {
+        agreementReissued = true;
+        await PartnerNotification.create({
+          partnerId: partner._id,
+          type: "partner_agreement_issued",
+          title: "Your Influencer Agreement was updated",
+          message: "SPOTX updated your payment rates. Your updated Influencer Agreement with the new rates is in Documents.",
+          entity: { type: "PartnerDocument", entityId: agreement._id }
+        });
+      }
+    } catch (agreementError) {
+      console.error("updateRates: agreement reissue failed:", agreementError);
+    }
+
+    return res.json({
+      success: true,
+      message: agreementReissued
+        ? "Payment rates updated — the influencer's agreement was reissued with the new rates."
+        : "Payment rates updated for this account.",
+      data: { post, reel, currency, agreementReissued }
+    });
   } catch (error) {
     console.error("updateRates error:", error);
     return res.status(500).json({ success: false, message: "Something went wrong updating payment rates." });
@@ -136,9 +179,10 @@ const reviewSubmission = async (req, res) => {
 
     let account = null;
     if (decision === "approved") {
-      const partner = await Partner.findById(submission.partnerId).select("socialAccounts influencerPaymentRates");
+      const partner = await Partner.findById(submission.partnerId).select("socialAccounts");
       account = partner?.socialAccounts.id(submission.socialAccountId);
-      const amount = Number(partner?.influencerPaymentRates?.[submission.contentType]);
+      // Paid at the rate of the account the content was posted from.
+      const amount = Number(account?.paymentRates?.[submission.contentType]);
       if (!account || account.reviewStatus !== "verified" || account.platform !== submission.platform) {
         return res.status(409).json({ success: false, message: "The linked influencer account must be verified before approval." });
       }
@@ -146,9 +190,9 @@ const reviewSubmission = async (req, res) => {
         return res.status(400).json({ success: false, message: "Confirm that the submitted URL belongs to the selected influencer account." });
       }
       if (!Number.isFinite(amount) || amount <= 0) {
-        return res.status(409).json({ success: false, message: "Set this influencer's post and reel rates before approving content." });
+        return res.status(409).json({ success: false, message: `Set a ${submission.contentType} rate for this ${account.platform} account before approving it.` });
       }
-      submission.payment = { amount, currency: partner.influencerPaymentRates.currency || "INR", status: "approved" };
+      submission.payment = { amount, currency: account.paymentRates.currency || "INR", status: "approved" };
       submission.ownershipConfirmed = true;
     } else {
       if (!String(reviewNote).trim()) {

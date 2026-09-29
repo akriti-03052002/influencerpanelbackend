@@ -23,7 +23,7 @@ const loadPartnerContext = async (req, res, next) => {
     if (!partner) {
       return res.status(404).json({
         success: false,
-        message: "Partner account not found."
+        message: "Influencer account not found."
       });
     }
 
@@ -36,7 +36,7 @@ const loadPartnerContext = async (req, res, next) => {
     if (partner.status === "suspended") {
       return res.status(403).json({
         success: false,
-        message: `Your partner account is ${partner.status}. Contact SPOTX support.`
+        message: `Your influencer account is ${partner.status}. Contact SPOTX support.`
       });
     }
 

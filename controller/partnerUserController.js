@@ -39,7 +39,7 @@ const inviteTeamMember = async (req, res) => {
     if (role === "owner") {
       return res.status(400).json({
         success: false,
-        message: "A partner account can only have one owner (set at registration)."
+        message: "An influencer account can only have one owner (set at registration)."
       });
     }
 
@@ -76,10 +76,10 @@ const inviteTeamMember = async (req, res) => {
 
     await sendMail({
       to: teamMember.email,
-      subject: `You've been invited to join ${businessName} on SPOTX Partner Panel`,
+      subject: `You've been invited to join ${businessName} on SPOTX Influencer Panel`,
       text: `${req.partnerUser.name} invited you to join ${businessName} as ${role}. Set your password to activate your account: ${activationLink}\n\nThis link expires in 7 days.`,
       html: `
-        <p>${req.partnerUser.name} invited you to join ${businessName} on SPOTX Partner Panel as <strong>${role}</strong>.</p>
+        <p>${req.partnerUser.name} invited you to join ${businessName} on SPOTX Influencer Panel as <strong>${role}</strong>.</p>
         <p><a href="${activationLink}">Set your password to activate your account</a></p>
         <p>This link expires in 7 days.</p>
       `

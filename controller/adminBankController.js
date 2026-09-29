@@ -40,7 +40,7 @@ const verifyBankAccount = async (req, res) => {
     if (status === "verified" && !razorpayPassed && !overrideReason?.trim()) {
       return res.status(400).json({
         success: false,
-        message: "The Razorpay bank check hasn't passed yet (payment not captured or the name doesn't match). Ask the partner to run/re-run verification, or provide an override reason to proceed anyway."
+        message: "The Razorpay bank check hasn't passed yet (payment not captured or the name doesn't match). Ask the influencer to run/re-run verification, or provide an override reason to proceed anyway."
       });
     }
 

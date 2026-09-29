@@ -48,7 +48,7 @@ const uploadDocumentForPartner = async (req, res) => {
     }
 
     if (documentType === "partner_agreement") {
-      return res.status(403).json({ success: false, message: "The partner agreement is generated automatically by SPOTX and can't be uploaded manually." });
+      return res.status(403).json({ success: false, message: "The influencer agreement is generated automatically by SPOTX and can't be uploaded manually." });
     }
 
     if (!req.file) {
@@ -58,7 +58,7 @@ const uploadDocumentForPartner = async (req, res) => {
     const partner = await Partner.findById(partnerId);
 
     if (!partner) {
-      return res.status(404).json({ success: false, message: "Partner not found." });
+      return res.status(404).json({ success: false, message: "Influencer not found." });
     }
 
     const document = await PartnerDocument.create({
@@ -91,7 +91,7 @@ const uploadDocumentForPartner = async (req, res) => {
       activityType: "document_uploaded",
       entityType: "PartnerDocument",
       entityId: document._id,
-      description: `${req.adminUser.name} uploaded a ${documentType} document on behalf of the partner.`,
+      description: `${req.adminUser.name} uploaded a ${documentType} document on behalf of the influencer.`,
       req
     });
 

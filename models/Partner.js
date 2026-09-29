@@ -109,6 +109,15 @@ const PartnerSchema = new Schema(
       reviewedBy: { type: ObjectId, ref: "User" },
       reviewedAt: { type: Date },
       rejectionReason: { type: String, default: "" },
+      // What SPOTX pays for content from THIS account — each platform has its
+      // own reach, so each gets its own price. 0 = that type isn't paid.
+      paymentRates: {
+        post: { type: Number, min: 0, default: 0 },
+        reel: { type: Number, min: 0, default: 0 },
+        currency: { type: String, default: "INR", uppercase: true, trim: true },
+        updatedBy: { type: ObjectId, ref: "User" },
+        updatedAt: { type: Date }
+      },
       lastSyncedAt: { type: Date },
       // Why the last automatic refresh failed (e.g. the influencer revoked
       // access) — cleared on the next successful sync.
@@ -120,14 +129,6 @@ const PartnerSchema = new Schema(
       // expire (Facebook Page tokens).
       tokenExpiresAt: { type: Date }
     }],
-
-    influencerPaymentRates: {
-      post: { type: Number, min: 0, default: 0 },
-      reel: { type: Number, min: 0, default: 0 },
-      currency: { type: String, default: "INR", uppercase: true, trim: true },
-      updatedBy: { type: ObjectId, ref: "User" },
-      updatedAt: { type: Date }
-    },
 
     /* VERIFICATION STATUS */
     verification: {

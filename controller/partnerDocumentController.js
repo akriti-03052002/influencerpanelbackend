@@ -24,7 +24,7 @@ const uploadDocument = async (req, res) => {
     // System-generated on verification (see services/generatePartnerAgreement.js)
     // — a partner never uploads their own.
     if (documentType === "partner_agreement") {
-      return res.status(403).json({ success: false, message: "The partner agreement is generated automatically by SPOTX and can't be uploaded manually." });
+      return res.status(403).json({ success: false, message: "The influencer agreement is generated automatically by SPOTX and can't be uploaded manually." });
     }
 
     if (!req.file) {

@@ -11,7 +11,7 @@ const {
 
 router.get("/accounts", requireAdminRole("kyc_reviewer", "finance"), listAccounts);
 router.patch("/accounts/:partnerId/:accountId/review", requireAdminRole("kyc_reviewer"), reviewAccount);
-router.patch("/accounts/:partnerId/rates", requireAdminRole("kyc_reviewer", "finance"), updateRates);
+router.patch("/accounts/:partnerId/:accountId/rates", requireAdminRole("kyc_reviewer", "finance"), updateRates);
 router.get("/posts", requireAdminRole("kyc_reviewer", "finance"), listSubmissions);
 router.patch("/posts/:id/review", requireAdminRole("kyc_reviewer", "finance"), reviewSubmission);
 

@@ -81,15 +81,15 @@ const createPartner = async (req, res) => {
     // password flow (partnerAuthController.forgotPassword/resetPassword).
     await sendMail({
       to: partnerUser.email,
-      subject: "You've been added as a SPOTX Partner",
-      text: `${req.adminUser.name} created a SPOTX Partner account for you.\n\nLogin email: ${partnerUser.email}\nPassword: ${password}\n\nLog in here: ${loginUrl}\n\nYou can change this password any time from the login page's "Forgot password" link.`,
+      subject: "You've been added as a SPOTX Influencer",
+      text: `${req.adminUser.name} created a SPOTX Influencer account for you.\n\nLogin email: ${partnerUser.email}\nPassword: ${password}\n\nLog in here: ${loginUrl}\n\nYou can change this password any time from the login page's "Forgot password" link.`,
       html: `
-        <p>${req.adminUser.name} created a SPOTX Partner account for you.</p>
+        <p>${req.adminUser.name} created a SPOTX Influencer account for you.</p>
         <p><strong>Login email:</strong> ${partnerUser.email}<br/>
         <strong>Password:</strong> ${password}</p>
-        <p><a href="${loginUrl}">Log in to SPOTX Partner Panel</a></p>
+        <p><a href="${loginUrl}">Log in to the SPOTX Influencer Panel</a></p>
         <p>You can change this password any time from the login page's "Forgot password" link.</p>
-        <p>Once you're in, complete your business profile and KYC details to get verified.</p>
+        <p>Once you're in, complete your profile, KYC details and social accounts to get verified.</p>
       `
     });
 
@@ -100,13 +100,13 @@ const createPartner = async (req, res) => {
       activityType: "status_changed",
       entityType: "Partner",
       entityId: partner._id,
-      description: `${req.adminUser.name} created this partner account directly.`,
+      description: `${req.adminUser.name} created this influencer account directly.`,
       req
     });
 
     return res.status(201).json({
       success: true,
-      message: `Partner created. ${partnerUser.email} can now log in with the password you set.`,
+      message: `Influencer created. ${partnerUser.email} can now log in with the password you set.`,
       data: { partner }
     });
   } catch (error) {
@@ -138,7 +138,7 @@ const getPartner = async (req, res) => {
   const partner = await Partner.findById(req.params.id);
 
   if (!partner) {
-    return res.status(404).json({ success: false, message: "Partner not found." });
+    return res.status(404).json({ success: false, message: "Influencer not found." });
   }
 
   const [documents, bankAccount, team] = await Promise.all([
@@ -182,7 +182,7 @@ const updatePartnerStatus = async (req, res) => {
     const partner = await Partner.findById(req.params.id);
 
     if (!partner) {
-      return res.status(404).json({ success: false, message: "Partner not found." });
+      return res.status(404).json({ success: false, message: "Influencer not found." });
     }
 
     partner.status = status;
@@ -207,7 +207,7 @@ const updatePartnerStatus = async (req, res) => {
     if (status === "suspended") {
       await holdSettlementsForPartner(partner._id, {
         code: "partner_suspended",
-        reason: "Partner account was suspended.",
+        reason: "Influencer account was suspended.",
         byUserId: req.adminUser._id,
         req
       });
@@ -216,7 +216,7 @@ const updatePartnerStatus = async (req, res) => {
     if (status === "under_review") {
       await holdSettlementsForPartner(partner._id, {
         code: "compliance_review",
-        reason: "Partner account is under compliance review.",
+        reason: "Influencer account is under compliance review.",
         byUserId: req.adminUser._id,
         req
       });
@@ -230,10 +230,10 @@ const updatePartnerStatus = async (req, res) => {
       await PartnerNotification.create({
         partnerId: partner._id,
         type: "partner_rejected",
-        title: "Your partner account was rejected",
+        title: "Your influencer account was rejected",
         message: rejectionReason
-          ? `Your partner account was rejected: ${rejectionReason}`
-          : "Your partner account was rejected. Contact SPOTX support for details.",
+          ? `Your influencer account was rejected: ${rejectionReason}`
+          : "Your influencer account was rejected. Contact SPOTX support for details.",
         entity: { type: "Partner", entityId: partner._id }
       });
     }
@@ -245,11 +245,11 @@ const updatePartnerStatus = async (req, res) => {
       activityType: "status_changed",
       entityType: "Partner",
       entityId: partner._id,
-      description: `${req.adminUser.name} changed partner status to ${status}.`,
+      description: `${req.adminUser.name} changed influencer status to ${status}.`,
       req
     });
 
-    return res.json({ success: true, message: "Partner status updated.", data: partner });
+    return res.json({ success: true, message: "Influencer status updated.", data: partner });
   } catch (error) {
     console.error("updatePartnerStatus error:", error);
     return res.status(500).json({ success: false, message: "Something went wrong updating the partner." });

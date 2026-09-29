@@ -69,10 +69,10 @@ const sendEmailOtp = async (req, res) => {
 
     await sendMail({
       to: normalizedEmail,
-      subject: "Your SPOTX Partner verification code",
+      subject: "Your SPOTX Influencer verification code",
       text: `Your verification code is ${otp}. It expires in 10 minutes.`,
       html: `
-        <p>Your SPOTX Partner verification code is:</p>
+        <p>Your SPOTX Influencer verification code is:</p>
         <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px;">${otp}</p>
         <p>This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
       `
@@ -214,7 +214,7 @@ const registerPartner = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Partner registration successful.",
+      message: "Registration successful.",
       token,
       partner: {
         id: partner._id,
@@ -255,7 +255,7 @@ const loginPartner = async (req, res) => {
     }
 
     if (user.status === "blocked") {
-      return res.status(403).json({ success: false, message: "Your partner account access has been blocked." });
+      return res.status(403).json({ success: false, message: "Your influencer account access has been blocked." });
     }
 
     // Admin-invited accounts start with no password set — the partner sets
@@ -281,7 +281,7 @@ const loginPartner = async (req, res) => {
     const partner = await Partner.findById(user.partnerId);
 
     if (!partner) {
-      return res.status(404).json({ success: false, message: "Partner account not found." });
+      return res.status(404).json({ success: false, message: "Influencer account not found." });
     }
 
     await logActivity({
@@ -291,7 +291,7 @@ const loginPartner = async (req, res) => {
       activityType: "login",
       entityType: "PartnerUser",
       entityId: user._id,
-      description: "Partner logged into the portal.",
+      description: "Influencer logged into the panel.",
       req
     });
 
@@ -353,10 +353,10 @@ const forgotPassword = async (req, res) => {
 
     await sendMail({
       to: user.email,
-      subject: "Reset your SPOTX Partner password",
+      subject: "Reset your SPOTX Influencer password",
       text: `Reset your password: ${resetLink}\n\nThis link expires in 30 minutes. If you didn't request this, ignore this email.`,
       html: `
-        <p>We received a request to reset your SPOTX Partner account password.</p>
+        <p>We received a request to reset your SPOTX Influencer account password.</p>
         <p><a href="${resetLink}">Reset your password</a></p>
         <p>This link expires in 30 minutes. If you didn't request this, ignore this email.</p>
       `

@@ -32,7 +32,7 @@ const sendMail = async ({ to, subject, html, text }) => {
   }
 
   await t.sendMail({
-    from: `"SPOTX Partners" <${process.env.SMTP_USER}>`,
+    from: `"SPOTX Influencers" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,

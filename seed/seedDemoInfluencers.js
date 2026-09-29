@@ -54,11 +54,10 @@ const INFLUENCERS = [
     status: "active",
     kyc: "verified",
     bank: { holder: "Ananya Iyer", bank: "HDFC Bank", account: "50100234567812", ifsc: "HDFC0001234", status: "verified" },
-    rates: { post: 8000, reel: 15000 },
     joined: 120,
     accounts: [
-      { platform: "instagram", accountId: "ananya.creates", followers: 185400, reviewStatus: "verified" },
-      { platform: "youtube", accountId: "AnanyaCreatesVlogs", followers: 92300, reviewStatus: "verified" }
+      { platform: "instagram", accountId: "ananya.creates", followers: 185400, reviewStatus: "verified", rates: { post: 8000, reel: 15000 } },
+      { platform: "youtube", accountId: "AnanyaCreatesVlogs", followers: 92300, reviewStatus: "verified", rates: { post: 6000, reel: 10000 } }
     ],
     posts: [
       { acc: 0, type: "reel", url: "https://www.instagram.com/reel/DmoAnanya01/", status: "approved", age: 60 },
@@ -78,10 +77,9 @@ const INFLUENCERS = [
     status: "active",
     kyc: "verified",
     bank: { holder: "Kabir Malhotra", bank: "ICICI Bank", account: "001201556677", ifsc: "ICIC0000012", status: "verified" },
-    rates: { post: 15000, reel: 28000 },
     joined: 90,
     accounts: [
-      { platform: "instagram", accountId: "kabir.eats", followers: 421800, reviewStatus: "verified" },
+      { platform: "instagram", accountId: "kabir.eats", followers: 421800, reviewStatus: "verified", rates: { post: 15000, reel: 28000 } },
       { platform: "facebook", accountId: "KabirEatsOfficial", followers: 60500, reviewStatus: "pending" }
     ],
     posts: [
@@ -99,10 +97,9 @@ const INFLUENCERS = [
     status: "active",
     kyc: "verified",
     bank: { holder: "Vikram Rao", bank: "State Bank of India", account: "38765432109", ifsc: "SBIN0004567", status: "verified" },
-    rates: { post: 25000, reel: 40000 },
     joined: 75,
     accounts: [
-      { platform: "youtube", accountId: "TechWithVikram", followers: 1240000, reviewStatus: "verified" },
+      { platform: "youtube", accountId: "TechWithVikram", followers: 1240000, reviewStatus: "verified", rates: { post: 25000, reel: 40000 } },
       { platform: "instagram", accountId: "techwithvikram_fake", followers: 5000, reviewStatus: "rejected", reason: "Handle does not match the verified YouTube channel owner." }
     ],
     posts: [
@@ -119,7 +116,6 @@ const INFLUENCERS = [
     status: "pending_verification",
     kyc: "pending",
     bank: { holder: "Meera Nair", bank: "Federal Bank", account: "14560100098765", ifsc: "FDRL0001456", status: "pending" },
-    rates: null,
     joined: 6,
     accounts: [
       { platform: "instagram", accountId: "meera.travels", followers: 34200, reviewStatus: "pending" }
@@ -135,7 +131,6 @@ const INFLUENCERS = [
     status: "rejected",
     kyc: "rejected",
     bank: null,
-    rates: null,
     joined: 15,
     rejectionReason: "PAN card image is blurry — please upload a clear scan.",
     accounts: [
@@ -182,7 +177,9 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
   const reviewedFor = (status) => (status === "pending" ? {} : { reviewedBy: admin._id, reviewedAt: daysAgo(Math.max(1, spec.joined - 3)) });
 
   const approvedPosts = spec.posts.filter((p) => p.status === "approved");
-  const approvedEarnings = spec.rates ? approvedPosts.reduce((sum, p) => sum + spec.rates[p.type], 0) : 0;
+  // Each account has its own price, so earnings follow the account a post came from.
+  const rateFor = (p) => spec.accounts[p.acc].rates?.[p.type] || 0;
+  const approvedEarnings = approvedPosts.reduce((sum, p) => sum + rateFor(p), 0);
 
   const partner = await Partner.create({
     partnerCode: `PTN-DEMO${String(index + 1).padStart(3, "0")}`,
@@ -205,11 +202,9 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
       reviewStatus: a.reviewStatus,
       submittedAt: daysAgo(Math.max(1, spec.joined - 2)),
       rejectionReason: a.reason || "",
+      ...(a.rates ? { paymentRates: { ...a.rates, currency: "INR", updatedBy: admin._id, updatedAt: daysAgo(spec.joined - 5) } } : {}),
       ...reviewedFor(a.reviewStatus)
     })),
-    influencerPaymentRates: spec.rates
-      ? { ...spec.rates, currency: "INR", updatedBy: admin._id, updatedAt: daysAgo(spec.joined - 5) }
-      : undefined,
     verification: {
       overallStatus: spec.kyc,
       ...(verified ? { verifiedBy: admin._id, verifiedAt: daysAgo(spec.joined - 4) } : {}),
@@ -292,7 +287,7 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
       normalizedUrl: normalizeContentUrl(p.url),
       status: p.status,
       payment: approved
-        ? { amount: spec.rates[p.type], currency: "INR", status: "approved" }
+        ? { amount: rateFor(p), currency: "INR", status: "approved" }
         : { amount: 0, currency: "INR", status: "not_assigned" },
       ownershipConfirmed: true,
       reviewNote: p.note || "",

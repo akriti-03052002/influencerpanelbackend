@@ -11,7 +11,7 @@ const requireVerifiedPartner = (req, res, next) => {
       success: false,
       locked: true,
       message: req.partner.status === "rejected"
-        ? "Your partner account was rejected — check your Dashboard for the reason. Re-submit corrected documents or bank details to be reconsidered."
+        ? "Your influencer account was rejected — check your Dashboard for the reason. Re-submit corrected documents or bank details to be reconsidered."
         : "This feature unlocks once SPOTX verifies your KYC documents and bank account."
     });
   }

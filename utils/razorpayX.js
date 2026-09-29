@@ -120,7 +120,7 @@ const createPayout = ({ fundAccountId, amountInRupees, mode = "IMPS", referenceI
       purpose: "payout",
       queue_if_low_balance: true,
       reference_id: referenceId,
-      narration: narration || "Partner commission settlement"
+      narration: narration || "Influencer payment settlement"
     }
   });
 

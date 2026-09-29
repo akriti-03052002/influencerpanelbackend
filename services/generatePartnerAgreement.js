@@ -14,30 +14,20 @@ const MUTED = "#666666";
 const FAINT = "#999999";
 
 const formatPercent = (n) => `${n}%`;
-const formatMoney = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+// The PDF's built-in Helvetica has no ₹ glyph (it prints as "¹"), so use "Rs.".
+const formatMoney = (n) => `Rs. ${Number(n || 0).toLocaleString("en-IN")}`;
+
+const PLATFORM_LABEL = { instagram: "Instagram", facebook: "Facebook", youtube: "YouTube" };
 
 /**
- * What the influencer is paid, straight from the per-post / per-reel rates
- * an admin sets on the partner (see adminSocialMediaController) — the same
- * amounts credited when each submission is approved.
+ * The influencer's social accounts that have agreed rates — straight from the
+ * per-post / per-reel rates an admin sets on each account (see
+ * adminSocialMediaController.updateRates). These are the same amounts credited
+ * automatically when content from that account is approved, so the agreement
+ * is the one place prices are stated; nothing is priced per post later.
  */
-const describePaymentTerms = (partner) => {
-  const rates = partner.influencerPaymentRates;
-  if (!rates || (!rates.post && !rates.reel)) {
-    return "Payment rates for this Partner have not been set yet. SPOTX will set per-post and per-reel rates before any payment becomes payable, and this Agreement will be reissued to reflect them.";
-  }
-  return `The Partner earns ${formatMoney(rates.post)} for each approved post and ${formatMoney(rates.reel)} for each approved reel promoting SPOTX, submitted through the SPOTX Partner Panel.`;
-};
-
-const SCOPE_BY_PARTNER_TYPE = {
-  vendor: "The Partner will refer and onboard end-customers who subscribe to the SPOTX platform, either by registering customers directly on the Partner's behalf or by sharing the Partner's unique customer referral code. Each registered customer receives a 30-day free trial before conversion to a paid subscription.",
-  affiliate: "The Partner will refer prospective customers and leads to SPOTX in exchange for the commission described in Section 5 below.",
-  influencer: "The Partner will promote SPOTX to its audience through posts and reels on its verified social media accounts, in exchange for the payment described in the Payment Terms section below.",
-  referral: "The Partner will make bona fide introductions of prospective customers to SPOTX in exchange for a referral fee as described in Section 5 below.",
-  agency: "The Partner will represent and refer SPOTX's platform to its own client base under the arrangement configured in the SPOTX Partner Panel.",
-  technology: "The Partner will integrate, bundle, or otherwise technically collaborate with SPOTX's platform under the arrangement configured in the SPOTX Partner Panel.",
-  strategic: "The Partner will collaborate with SPOTX under a strategic partnership arrangement as configured in the SPOTX Partner Panel."
-};
+const pricedAccounts = (partner) =>
+  (partner.socialAccounts || []).filter((a) => a.reviewStatus !== "rejected" && (a.paymentRates?.post || a.paymentRates?.reel));
 
 const ENTITY_TYPE_LABEL = {
   proprietorship: "Sole Proprietorship",
@@ -56,7 +46,7 @@ const formatAddress = (address) => {
 };
 
 /**
- * Renders the full multi-section partner agreement PDF to disk and returns
+ * Renders the full multi-section influencer agreement PDF to disk and returns
  * file metadata in the same shape partnerDocumentController.uploadDocument
  * produces, so the caller can save it as a normal PartnerDocument row.
  */
@@ -64,14 +54,15 @@ const generatePartnerAgreementFile = async (partner) => {
   const partnerDir = path.join(UPLOAD_ROOT, String(partner._id));
   fs.mkdirSync(partnerDir, { recursive: true });
 
-  const filename = `partner-agreement-${Date.now()}.pdf`;
+  const filename = `influencer-agreement-${Date.now()}.pdf`;
   const filePath = path.join(partnerDir, filename);
 
   const settlementSetting = await SettlementSetting.findOne({ partnerId: partner._id });
 
   const effectiveDate = new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
   const agreementRef = `SPX-AGR-${partner.partnerCode}`;
-  const partnerTypeLabel = partner.partnerType.charAt(0).toUpperCase() + partner.partnerType.slice(1);
+  const influencerName = partner.legalEntity.businessName || partner.primaryContact.name;
+  const accounts = pricedAccounts(partner);
 
   const settlementCadence = settlementSetting
     ? settlementSetting.settlementType.charAt(0).toUpperCase() + settlementSetting.settlementType.slice(1)
@@ -120,7 +111,7 @@ const generatePartnerAgreementFile = async (partner) => {
       doc.font("Helvetica");
       doc.moveDown(0.2);
     }
-    doc.fontSize(16).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("Partner Agreement");
+    doc.fontSize(16).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("Influencer Agreement");
     doc.font("Helvetica");
     doc.moveDown(0.15);
     doc.fontSize(9).fillColor(MUTED).text(`Reference: ${agreementRef}    |    Effective Date: ${effectiveDate}`);
@@ -130,25 +121,22 @@ const generatePartnerAgreementFile = async (partner) => {
     // ---- Preamble ----
     doc.moveDown(0.8);
     body(
-      `This Partner Agreement ("Agreement") is entered into as of ${effectiveDate}, by and between SPOTX ("SPOTX" or the ` +
-      `"Company"), an enterprise digital signage platform operator [Registered Office Address to be inserted], and the ` +
-      `partner identified below ("Partner"). SPOTX and the Partner are individually a "Party" and together the "Parties".`
+      `This Influencer Agreement ("Agreement") is entered into as of ${effectiveDate}, by and between SPOTX ("SPOTX" or ` +
+      `the "Company"), an enterprise digital signage platform operator [Registered Office Address to be inserted], and ` +
+      `the content creator identified below ("Influencer"). SPOTX and the Influencer are individually a "Party" and ` +
+      `together the "Parties".`
     );
 
     // ---- Parties ----
     heading("Parties");
-    doc.fontSize(10).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("The Partner");
+    doc.fontSize(10).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("The Influencer");
     doc.font("Helvetica").fillColor(CHARCOAL);
-    doc.text(`Business / Trade Name: ${partner.legalEntity.businessName}`);
+    doc.text(`Name: ${partner.primaryContact.name}`);
+    if (partner.legalEntity.businessName) doc.text(`Creator / Brand Name: ${partner.legalEntity.businessName}`);
     if (partner.legalEntity.legalName) doc.text(`Registered Legal Name: ${partner.legalEntity.legalName}`);
-    doc.text(`Entity Type: ${ENTITY_TYPE_LABEL[partner.legalEntity.entityType] || "Not specified"}`);
-    doc.text(`Partner Code: ${partner.partnerCode}`);
-    doc.text(`Partner Category: ${partnerTypeLabel} Partner`);
-    doc.text(`Registered / Business Address: ${formatAddress(partner.address)}`);
-    doc.moveDown(0.4);
-    doc.fontSize(10).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("Authorized Representative");
-    doc.font("Helvetica").fillColor(CHARCOAL);
-    doc.text(`Name: ${partner.primaryContact.name}${partner.primaryContact.designation ? ` (${partner.primaryContact.designation})` : ""}`);
+    if (partner.legalEntity.entityType) doc.text(`Entity Type: ${ENTITY_TYPE_LABEL[partner.legalEntity.entityType]}`);
+    doc.text(`Influencer Code: ${partner.partnerCode}`);
+    doc.text(`Address: ${formatAddress(partner.address)}`);
     doc.text(`Email: ${partner.primaryContact.email}`);
     if (partner.primaryContact.phone) doc.text(`Phone: ${partner.primaryContact.phone}`);
 
@@ -157,33 +145,62 @@ const generatePartnerAgreementFile = async (partner) => {
     body(
       "SPOTX operates an enterprise-grade digital signage platform that enables businesses to manage content, monitor " +
       "screens, schedule campaigns, and track performance across their screen network from a single dashboard. The " +
-      "Partner wishes to participate in the SPOTX Partner Program in the capacity described below, and SPOTX is " +
-      "willing to grant such participation on the terms of this Agreement."
+      "Influencer creates content for an audience on social media and wishes to promote SPOTX to that audience. SPOTX " +
+      "is willing to pay the Influencer for approved promotional content on the terms of this Agreement."
     );
 
     // ---- Scope ----
-    heading("Scope of Partnership");
-    body(SCOPE_BY_PARTNER_TYPE[partner.partnerType] || "The scope of this partnership is as configured for the Partner in the SPOTX Partner Panel.");
+    heading("Scope of Work");
+    body(
+      "The Influencer will create and publish posts and reels promoting SPOTX on the social media accounts listed in " +
+      "the Payment Terms section below, and submit each published piece through the SPOTX Influencer Panel for review. " +
+      "SPOTX reviews every submission and approves or rejects it; only approved content is paid. In creating content, " +
+      "the Influencer will:"
+    );
+    doc.moveDown(0.3);
+    bullet("publish only from social accounts that SPOTX has verified as belonging to the Influencer;");
+    bullet("clearly disclose the paid nature of the content (for example \"#ad\" or the platform's paid-partnership label), in line with the ASCI Guidelines for Influencer Advertising in Digital Media;");
+    bullet("represent SPOTX's products, features, and pricing accurately, and not make claims SPOTX has not approved;");
+    bullet("keep follower and engagement figures genuine — no purchased followers, bots, or artificial engagement.");
 
     // ---- Onboarding & Verification ----
     heading("Onboarding & Verification");
     body(
-      "This Agreement, and the Partner's ability to use the referral, sales, and payout features of the SPOTX Partner " +
-      "Panel, is conditioned on SPOTX's verification of the Partner's KYC documents and bank account details. The " +
-      "Partner represents and warrants that all information and documents submitted for this purpose are true, " +
-      "accurate, and not misleading. SPOTX reserves the right to suspend or reject the Partner's account if this is " +
-      "found not to be the case."
+      "This Agreement, and the Influencer's ability to submit content and receive payouts through the SPOTX Influencer " +
+      "Panel, is conditioned on SPOTX's verification of the Influencer's KYC documents, bank account details, and " +
+      "social media accounts. The Influencer represents and warrants that all information and documents submitted for " +
+      "this purpose are true, accurate, and not misleading. SPOTX reserves the right to suspend or reject the " +
+      "Influencer's account if this is found not to be the case."
     );
 
     // ---- Payment Terms ----
     heading("Payment Terms");
-    body(describePaymentTerms(partner));
+    if (accounts.length === 0) {
+      body(
+        "Payment rates for the Influencer's social accounts have not been set yet. SPOTX will agree per-post and " +
+        "per-reel rates for each account before any content becomes payable, and this Agreement will be reissued to " +
+        "state them."
+      );
+    } else {
+      body(
+        "The Influencer is paid a fixed amount for each approved piece of content, at the rate agreed below for the " +
+        "social account it was published on. These rates apply to every approved post and reel from that account — " +
+        "no separate price is set per piece of content."
+      );
+      doc.moveDown(0.3);
+      for (const a of accounts) {
+        const rates = [];
+        if (a.paymentRates.post) rates.push(`${formatMoney(a.paymentRates.post)} per post`);
+        if (a.paymentRates.reel) rates.push(`${formatMoney(a.paymentRates.reel)} per reel`);
+        bullet(`${PLATFORM_LABEL[a.platform] || a.platform} — ${a.username || a.accountId}: ${rates.join(", ")}`);
+      }
+    }
     doc.moveDown(0.4);
     body(
       `A payment is recorded when SPOTX approves a submitted post or reel, and becomes eligible for settlement ` +
       `after SPOTX's internal review. Settlements are processed on a ${settlementCadence.toLowerCase()} basis to the ` +
-      `bank account verified by the Partner in the SPOTX Partner Panel.${tdsNote} SPOTX reserves the right to hold or ` +
-      `reverse any payment connected to content that is subsequently removed, misrepresented, or found to be fraudulent.`
+      `bank account verified by the Influencer in the SPOTX Influencer Panel.${tdsNote} SPOTX reserves the right to ` +
+      `hold or reverse any payment connected to content that is removed, misrepresented, or found to be fraudulent.`
     );
 
     // ---- Term & Termination ----
@@ -191,7 +208,7 @@ const generatePartnerAgreementFile = async (partner) => {
     body(
       "This Agreement commences on the Effective Date and continues until terminated by either Party. Either Party " +
       "may terminate this Agreement for convenience upon thirty (30) days' prior written notice to the other Party. " +
-      "SPOTX may suspend or terminate this Agreement immediately upon written notice if the Partner breaches this " +
+      "SPOTX may suspend or terminate this Agreement immediately upon written notice if the Influencer breaches this " +
       "Agreement, provides false information, or engages in fraudulent or unlawful conduct. Termination does not " +
       "affect payment already earned for content approved prior to the effective date of termination, which remains " +
       "payable per the settlement terms above."
@@ -200,34 +217,37 @@ const generatePartnerAgreementFile = async (partner) => {
     // ---- Confidentiality ----
     heading("Confidentiality");
     body(
-      "Each Party agrees to keep confidential all non-public business, technical, financial, and customer information " +
-      "disclosed by the other Party in connection with this Agreement, and to use such information solely to perform " +
-      "its obligations under this Agreement. This obligation survives termination of this Agreement."
+      "Each Party agrees to keep confidential all non-public business, technical, and financial information disclosed " +
+      "by the other Party in connection with this Agreement, including the payment rates set out above, and to use such " +
+      "information solely to perform its obligations under this Agreement. This obligation survives termination of " +
+      "this Agreement."
     );
 
     // ---- Intellectual Property ----
-    heading("Intellectual Property");
+    heading("Intellectual Property & Content Use");
     body(
       "SPOTX retains all right, title, and interest in and to its platform, software, trademarks, and brand assets. " +
-      "The Partner is granted a limited, non-exclusive, non-transferable right to use SPOTX's name and marks solely " +
-      "for marketing SPOTX to prospective customers under this Agreement, in accordance with SPOTX's brand " +
-      "guidelines, and such right terminates automatically upon termination of this Agreement."
+      "The Influencer is granted a limited, non-exclusive, non-transferable right to use SPOTX's name and marks solely " +
+      "in content created under this Agreement, in accordance with SPOTX's brand guidelines; this right ends " +
+      "automatically when this Agreement ends. The Influencer retains ownership of the content it creates, and grants " +
+      "SPOTX a non-exclusive right to share or link to approved content on SPOTX's own channels with credit to the " +
+      "Influencer."
     );
 
-    // ---- Data Protection & Compliance ----
-    heading("Data Protection & Compliance");
+    // ---- Compliance ----
+    heading("Compliance");
     body(
       "Each Party will comply with applicable law in performing its obligations under this Agreement, including " +
-      "applicable data protection law when handling personal information of prospective or registered customers. " +
-      "The Partner will not misrepresent SPOTX's products, pricing, or terms to any prospective customer."
+      "consumer protection and advertising disclosure rules and each social media platform's own terms for branded " +
+      "content. The Influencer is responsible for its own tax filings on payments received under this Agreement."
     );
 
     // ---- Limitation of Liability ----
     heading("Limitation of Liability");
     body(
       "Neither Party will be liable to the other for any indirect, incidental, or consequential damages arising out " +
-      "of this Agreement. Each Party's total liability under this Agreement is limited to the amounts " +
-      "actually paid or payable to the Partner in the twelve (12) months preceding the event giving rise to the claim."
+      "of this Agreement. Each Party's total liability under this Agreement is limited to the amounts actually paid " +
+      "or payable to the Influencer in the twelve (12) months preceding the event giving rise to the claim."
     );
 
     // ---- Governing Law ----
@@ -241,17 +261,17 @@ const generatePartnerAgreementFile = async (partner) => {
     // ---- Notices ----
     heading("Notices");
     body(
-      `Notices under this Agreement will be sent to the Partner at ${partner.primaryContact.email} and will be deemed ` +
-      "delivered when sent. SPOTX may also notify the Partner in-app via the SPOTX Partner Panel."
+      `Notices under this Agreement will be sent to the Influencer at ${partner.primaryContact.email} and will be ` +
+      "deemed delivered when sent. SPOTX may also notify the Influencer in-app via the SPOTX Influencer Panel."
     );
 
     // ---- Entire Agreement ----
     heading("Entire Agreement");
     body(
-      "This Agreement, generated by the SPOTX Partner Panel upon verification of the Partner's account, reflects the " +
-      "commercial terms configured for the Partner as of the Effective Date and constitutes the entire understanding " +
-      "between the Parties regarding the subject matter herein. Any amendment to the payment rates or " +
-      "scope described above will be reflected in a reissued version of this Agreement."
+      "This Agreement, generated by the SPOTX Influencer Panel, reflects the terms configured for the Influencer as of " +
+      "the Effective Date and constitutes the entire understanding between the Parties regarding the subject matter " +
+      "herein. Whenever SPOTX changes the Influencer's payment rates, a reissued version of this Agreement stating " +
+      "the new rates replaces this one for content approved after its effective date."
     );
 
     // ---- Acknowledgement / signature block ----
@@ -259,10 +279,9 @@ const generatePartnerAgreementFile = async (partner) => {
     doc.strokeColor("#E5E5E5").lineWidth(1).moveTo(56, doc.y).lineTo(539, doc.y).stroke();
     doc.moveDown(0.6);
     doc.fontSize(9).fillColor(FAINT).text(
-      "This document is generated automatically by the SPOTX Partner Panel upon successful verification of the " +
-      "Partner's KYC documents and bank account, and stands as the record of agreed commercial terms between the " +
-      "Parties from that point forward. Where a separately signed master agreement exists between the Parties, that " +
-      "document takes precedence over this one.",
+      "This document is generated automatically by the SPOTX Influencer Panel upon verification of the Influencer's " +
+      "KYC documents and bank account, and is reissued whenever the agreed payment rates change. Where a separately " +
+      "signed master agreement exists between the Parties, that document takes precedence over this one.",
       { align: "justify", lineGap: 2 }
     );
 
@@ -271,12 +290,12 @@ const generatePartnerAgreementFile = async (partner) => {
     doc.fontSize(9).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("For SPOTX", 56, colY);
     doc.font("Helvetica").fillColor(CHARCOAL).fontSize(9);
     doc.text("Authorized Signatory", 56, colY + 14);
-    doc.text(`Verified on: ${effectiveDate}`, 56, colY + 28);
+    doc.text(`Issued on: ${effectiveDate}`, 56, colY + 28);
 
-    doc.fontSize(9).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("For the Partner", 300, colY);
+    doc.fontSize(9).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("For the Influencer", 300, colY);
     doc.font("Helvetica").fillColor(CHARCOAL).fontSize(9);
     doc.text(partner.primaryContact.name, 300, colY + 14);
-    doc.text(partner.legalEntity.businessName, 300, colY + 28);
+    if (influencerName !== partner.primaryContact.name) doc.text(influencerName, 300, colY + 28);
 
     // ---- Footer: page numbers on every page ----
     // Writing inside the bottom margin makes pdfkit think the content
@@ -305,23 +324,14 @@ const generatePartnerAgreementFile = async (partner) => {
 
   return {
     objectKey: path.join(String(partner._id), filename),
-    originalName: "SPOTX Partner Agreement.pdf",
+    originalName: "SPOTX Influencer Agreement.pdf",
     mimeType: "application/pdf",
     size
   };
 };
 
-/**
- * Generates the agreement and files it as a normal PartnerDocument, already
- * verified (SPOTX generated it, there's nothing for a reviewer to approve).
- * Idempotent — a partner never gets a second one.
- */
-const attachPartnerAgreement = async (partner, adminUserId) => {
-  const existing = await PartnerDocument.findOne({ partnerId: partner._id, documentType: "partner_agreement" });
-  if (existing) return existing;
-
+const createAgreementDocument = async (partner, adminUserId) => {
   const file = await generatePartnerAgreementFile(partner);
-
   return PartnerDocument.create({
     partnerId: partner._id,
     documentType: "partner_agreement",
@@ -334,4 +344,30 @@ const attachPartnerAgreement = async (partner, adminUserId) => {
   });
 };
 
-module.exports = { generatePartnerAgreementFile, attachPartnerAgreement };
+/**
+ * Generates the agreement and files it as a normal PartnerDocument, already
+ * verified (SPOTX generated it, there's nothing for a reviewer to approve).
+ * Idempotent — activation never creates a second one.
+ */
+const attachPartnerAgreement = async (partner, adminUserId) => {
+  const existing = await PartnerDocument.findOne({ partnerId: partner._id, documentType: "partner_agreement" });
+  if (existing) return existing;
+  return createAgreementDocument(partner, adminUserId);
+};
+
+/**
+ * Issues a fresh agreement stating the influencer's current rates — called
+ * whenever an admin changes an account's rates, so the agreement always shows
+ * the prices every approved post/reel is paid at. Only once the influencer
+ * already has an agreement (i.e. is verified); before that, activation issues
+ * the first one with whatever rates exist by then. The admin and influencer
+ * UIs show the latest agreement by createdAt, so older versions stay on
+ * record without being deleted.
+ */
+const reissuePartnerAgreement = async (partner, adminUserId) => {
+  const existing = await PartnerDocument.exists({ partnerId: partner._id, documentType: "partner_agreement" });
+  if (!existing) return null;
+  return createAgreementDocument(partner, adminUserId);
+};
+
+module.exports = { generatePartnerAgreementFile, attachPartnerAgreement, reissuePartnerAgreement };
