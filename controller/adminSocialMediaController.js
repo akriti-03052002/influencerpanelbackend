@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { Partner, InfluencerContentSubmission, PartnerNotification } = require("../models/Index");
 const { reissuePartnerAgreement } = require("../services/generatePartnerAgreement");
 const { recordContentPayment } = require("../services/contentPayment");
+const AdminNotification = require("../models/AdminNotification");
 
 const listAccounts = async (req, res) => {
   const partners = await Partner.find({
@@ -208,6 +209,10 @@ const reviewSubmission = async (req, res) => {
     submission.reviewedBy = req.adminUser._id;
     submission.reviewedAt = new Date();
     await submission.save();
+
+    // Reviewing it answers its "new post/reel" notification for this admin.
+    await AdminNotification.updateMany({ entityId: submission._id }, { $addToSet: { readBy: req.adminUser._id } })
+      .catch((notifyError) => console.error("reviewSubmission: marking notification read failed:", notifyError.message));
 
     // Approval is what makes the money owed: record it on the earnings
     // ledger so it appears in Settlements, ready to be paid out.
