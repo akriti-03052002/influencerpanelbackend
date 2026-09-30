@@ -21,10 +21,15 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 const submitBill = async (req, res) => {
   try {
-    const { billNumber, billDate, gstin } = req.body;
+    const { billNumber, billDate } = req.body;
+    // GSTIN only for GST-registered influencers; most individuals don't have one.
+    const gstin = String(req.body.gstin || "").trim().toUpperCase();
 
-    if (!billNumber || !billDate || !gstin) {
-      return res.status(400).json({ success: false, message: "Bill number, bill date, and GSTIN are all required." });
+    if (!billNumber || !billDate) {
+      return res.status(400).json({ success: false, message: "Invoice number and invoice date are required." });
+    }
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
+      return res.status(400).json({ success: false, message: "That GSTIN doesn't look right — it should be 15 characters, e.g. 29ABCDE1234F1Z5. Leave it empty if you aren't GST-registered." });
     }
 
     if (!req.file) {
@@ -47,7 +52,7 @@ const submitBill = async (req, res) => {
     }
 
     const commission = settlement.amount.gross;
-    const gstAmount = round2((commission * GST_RATE_PERCENT) / 100);
+    const gstAmount = gstin ? round2((commission * GST_RATE_PERCENT) / 100) : 0;
     const totalBillAmount = round2(commission + gstAmount);
 
     const billData = {
@@ -56,7 +61,7 @@ const submitBill = async (req, res) => {
       billNumber,
       billDate,
       gstin,
-      amount: { commission, gstRatePercent: GST_RATE_PERCENT, gstAmount, totalBillAmount, currency: settlement.amount.currency },
+      amount: { commission, gstRatePercent: gstin ? GST_RATE_PERCENT : 0, gstAmount, totalBillAmount, currency: settlement.amount.currency },
       file: await storeUploadedFile(req.file, `partners/${req.partner._id}/bills`),
       status: "submitted",
       verifiedBy: undefined,
@@ -95,12 +100,12 @@ const submitBill = async (req, res) => {
     await notifyAdmins({
       type: "bill_submitted",
       title: "Invoice to verify",
-      message: `{name} submitted bill ${billNumber} for settlement ${settlement.settlementNumber}.`,
+      message: `{name} sent invoice ${billNumber} for settlement ${settlement.settlementNumber} (₹${totalBillAmount.toLocaleString("en-IN")}).`,
       link: "/admin/settlements",
       partner: req.partner
     });
 
-    return res.status(201).json({ success: true, message: "Bill submitted — awaiting verification.", data: bill });
+    return res.status(201).json({ success: true, message: "Invoice sent — SPOTX will verify it and then release your payment.", data: bill });
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(400).json({ success: false, message: "A bill already exists for this settlement." });

@@ -167,10 +167,26 @@ const createSettlement = async (req, res) => {
     // hold immediately so admin/partner both see why.
     const eligibility = await checkSettlementPayoutReadiness(settlement);
     if (!eligibility.eligible) {
-      await putSettlementOnHold(settlement, { code: eligibility.code, reason: eligibility.reason, byUserId: req.adminUser._id, req });
+      const needsInvoice = eligibility.invoice === "missing";
+      const amountText = `₹${gross.toLocaleString("en-IN")}`;
+      await putSettlementOnHold(settlement, {
+        code: eligibility.code,
+        reason: eligibility.reason,
+        byUserId: req.adminUser._id,
+        req,
+        notification: needsInvoice
+          ? {
+              type: "settlement_invoice_requested",
+              title: "Send your invoice to get paid",
+              message: `SPOTX created settlement ${settlement.settlementNumber} for ${amountText}. Upload your invoice for ${amountText} from the Settlements page so it can be paid.`
+            }
+          : undefined
+      });
       return res.status(201).json({
         success: true,
-        message: `Settlement batch created, but placed on hold: ${eligibility.reason}`,
+        message: needsInvoice
+          ? "Settlement batch created — the influencer has been asked to send their invoice. You can pay it once you verify the invoice."
+          : `Settlement batch created, but placed on hold: ${eligibility.reason}`,
         data: settlement
       });
     }
@@ -619,10 +635,10 @@ const verifyBill = async (req, res) => {
     await PartnerNotification.create({
       partnerId: bill.partnerId,
       type: status === "verified" ? "settlement_bill_verified" : "settlement_bill_rejected",
-      title: status === "verified" ? "Bill verified" : "Bill rejected",
+      title: status === "verified" ? "Invoice verified" : "Invoice rejected — please resend",
       message: status === "verified"
-        ? `Your bill ${bill.billNumber} was verified.`
-        : `Your bill ${bill.billNumber} was rejected: ${bill.rejectionReason}`,
+        ? `Your invoice ${bill.billNumber} was verified. Your payment will be released shortly.`
+        : `Your invoice ${bill.billNumber} was rejected: ${bill.rejectionReason}. Upload a corrected invoice from the Settlements page.`,
       entity: { type: "PartnerSettlement", entityId: bill.settlementId }
     }).catch((error) => console.error("verifyBill: notification failed:", error.message));
 

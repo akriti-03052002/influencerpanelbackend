@@ -44,9 +44,10 @@ const PartnerSettlementBillSchema = new Schema(
     // GSTIN field exists anywhere else in the schema today (PartnerDocument
     // only has a generic free-text documentNumber), so this is where it's
     // actually captured.
+    // Empty when the influencer isn't GST-registered (then no GST is added).
     gstin: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       uppercase: true
     },

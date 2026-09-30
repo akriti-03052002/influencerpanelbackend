@@ -1,9 +1,8 @@
-const { Partner, PartnerBankAccount, PartnerDocument, PartnerSettlement, PartnerNotification } = require("../models/Index");
+const { Partner, PartnerBankAccount, PartnerSettlement, PartnerNotification } = require("../models/Index");
 const PartnerSettlementBill = require("../models/PartnerSettlementBill");
 const logActivity = require("./logActivity");
 const { recordSettlementHistory } = require("./settlementHistory");
 const { SETTLEMENT_HOLD_CODES } = require("../config/constant");
-const { getRequiredDocumentTypes } = require("./partnerVerification");
 
 /* ============================================================
    SETTLEMENT HOLD
@@ -47,7 +46,7 @@ const checkPartnerPayoutEligibility = async (partnerId) => {
   }
 
   if (partner.status !== "active") {
-    return { eligible: false, code: "incomplete_info", reason: `Partner account is ${partner.status.replace(/_/g, " ")}.` };
+    return { eligible: false, code: "incomplete_info", reason: `Influencer account is ${partner.status.replace(/_/g, " ")}.` };
   }
 
   const bankAccount = await PartnerBankAccount.findOne({ partnerId });
@@ -63,45 +62,27 @@ const checkPartnerPayoutEligibility = async (partnerId) => {
   return { eligible: true };
 };
 
-/* GST-registered partners (business types whose required KYC includes a
-   verified "gst_certificate" — see utils/partnerVerification.js) must
-   submit a bill for a settlement batch before it can be paid: what's
-   actually owed is commission + GST, not just the raw commission amount.
-   Checked independently of checkPartnerPayoutEligibility (which only
-   looks at partner/bank state, not any one settlement) since this is
-   scoped to a specific settlementId. */
+/* Every influencer sends SPOTX an invoice for each settlement batch, and the
+   batch can't be paid until an admin verifies it. `invoice` says which step
+   is missing so callers can word notifications (missing / submitted /
+   rejected). Checked independently of checkPartnerPayoutEligibility (which
+   only looks at partner/bank state) since it's scoped to one settlement. */
 const checkBillRequirement = async (partnerId, settlementId) => {
-  const partner = await Partner.findById(partnerId);
-  if (!partner) return { eligible: true }; // checkPartnerPayoutEligibility already reports "not found"
-
-  const gstRequired = getRequiredDocumentTypes(partner.partnerType).includes("gst_certificate");
-  if (!gstRequired) return { eligible: true };
-
-  const verifiedGstDoc = await PartnerDocument.findOne({
-    partnerId,
-    documentType: "gst_certificate",
-    "verification.status": "verified"
-  });
-  if (!verifiedGstDoc) return { eligible: true }; // GST-eligible type, but not actually GST-registered — nothing to bill
-
   const bill = await PartnerSettlementBill.findOne({ settlementId });
 
   if (!bill) {
+    return { eligible: false, code: "incomplete_info", invoice: "missing", reason: "Waiting for the influencer's invoice for this settlement." };
+  }
+  if (bill.status === "rejected") {
     return {
       eligible: false,
       code: "incomplete_info",
-      reason: "GST-registered — a bill must be submitted for this settlement before it can be paid."
+      invoice: "rejected",
+      reason: `The invoice was rejected: ${bill.rejectionReason || "no reason given"}. A corrected invoice is needed.`
     };
   }
-
   if (bill.status !== "verified") {
-    return {
-      eligible: false,
-      code: "incomplete_info",
-      reason: bill.status === "rejected"
-        ? `The submitted bill was rejected: ${bill.rejectionReason || "no reason given"}. A new bill must be submitted.`
-        : "A bill has been submitted for this settlement but not yet verified."
-    };
+    return { eligible: false, code: "incomplete_info", invoice: "submitted", reason: "Invoice submitted — waiting for SPOTX to verify it." };
   }
 
   return { eligible: true };
@@ -130,7 +111,7 @@ const notifyPartner = (partnerId, { type, title, message, entityId }) =>
 /* Puts a single settlement on hold, saving whatever status it was in so
    releaseSettlementHold can restore it later instead of guessing.
    byUserId omitted => logged/notified as a system-triggered hold. */
-const putSettlementOnHold = async (settlement, { code, reason, byUserId, req } = {}) => {
+const putSettlementOnHold = async (settlement, { code, reason, byUserId, req, notification } = {}) => {
   const resolvedCode = SETTLEMENT_HOLD_CODES.includes(code) ? code : "manual";
   const resolvedReason = reason || HOLD_REASON_LABEL[resolvedCode] || "On hold.";
   const fromStatus = settlement.status;
@@ -172,7 +153,9 @@ const putSettlementOnHold = async (settlement, { code, reason, byUserId, req } =
     type: "settlement_held",
     title: "Settlement on hold",
     message: `Your settlement ${settlement.settlementNumber} of ${settlement.amount.net.toFixed(2)} is on hold: ${resolvedReason}`,
-    entityId: settlement._id
+    entityId: settlement._id,
+    // Callers can replace the generic wording, e.g. "Submit your invoice".
+    ...(notification || {})
   });
 
   return settlement;
