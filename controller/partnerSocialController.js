@@ -205,7 +205,7 @@ const callback = async (req, res) => {
         type: "social_account_connected",
         title: "Social account to verify",
         message: `{name} connected ${platformLabel(platform)} account ${account.username ? `@${account.username}` : account.accountId} (${Number(account.followers || 0).toLocaleString("en-IN")} followers).`,
-        link: "/admin/social-media",
+        link: "/admin/social-media/accounts",
         partner
       });
     }

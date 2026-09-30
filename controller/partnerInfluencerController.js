@@ -118,7 +118,7 @@ const submitAccount = async (req, res) => {
       type: "social_account_submitted",
       title: "Social account to verify",
       message: `{name} added ${platformLabel(platform)} account @${accountId} (${followers.toLocaleString("en-IN")} followers).`,
-      link: "/admin/social-media",
+      link: "/admin/social-media/accounts",
       partner: req.partner
     });
 
@@ -180,7 +180,7 @@ const submitContent = async (req, res) => {
       type: "content_submitted",
       title: `New ${contentType} to review`,
       message: `{name} submitted ${withArticle(platformLabel(account.platform))} ${contentType} from @${account.username || account.accountId}.`,
-      link: "/admin/social-media",
+      link: "/admin/social-media/posts",
       partner: req.partner,
       entityId: submission._id
     });
