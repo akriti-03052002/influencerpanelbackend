@@ -6,6 +6,7 @@ const { Partner, PartnerUser, EmailOtp } = require("../models/Index");
 const { generatePartnerCode } = require("../utils/generateCode");
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const logActivity = require("../utils/logActivity");
+const notifyAdmins = require("../utils/notifyAdmins");
 const { sendMail } = require("../utils/mailer");
 
 // =====================================================
@@ -208,6 +209,14 @@ const registerPartner = async (req, res) => {
       entityId: partner._id,
       description: "Influencer account registered successfully.",
       req
+    });
+
+    await notifyAdmins({
+      type: "influencer_registered",
+      title: "New influencer signed up",
+      message: `${contactName} (${partnerUser.email}) created an account.`,
+      link: `/admin/partners/${partner._id}`,
+      partner
     });
 
     const token = generateToken(partnerUser);

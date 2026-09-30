@@ -3,6 +3,7 @@ const { PartnerSettlement } = require("../models/Index");
 const PartnerSettlementBill = require("../models/PartnerSettlementBill");
 const { GST_RATE_PERCENT } = require("../config/constant");
 const logActivity = require("../utils/logActivity");
+const notifyAdmins = require("../utils/notifyAdmins");
 const { recordSettlementHistory } = require("../utils/settlementHistory");
 
 /* ============================================================
@@ -95,6 +96,14 @@ const submitBill = async (req, res) => {
       entityId: settlement._id,
       description: `${req.partnerUser.name} submitted a bill (${billNumber}) for settlement ${settlement.settlementNumber}.`,
       req
+    });
+
+    await notifyAdmins({
+      type: "bill_submitted",
+      title: "Invoice to verify",
+      message: `{name} submitted bill ${billNumber} for settlement ${settlement.settlementNumber}.`,
+      link: "/admin/settlements",
+      partner: req.partner
     });
 
     return res.status(201).json({ success: true, message: "Bill submitted — awaiting verification.", data: bill });

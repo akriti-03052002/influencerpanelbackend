@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const { Partner } = require("../models/Index");
 const { encrypt } = require("../utils/encryption");
+const notifyAdmins = require("../utils/notifyAdmins");
+const { platformLabel } = notifyAdmins;
 const { fetchInstagramProfile, fetchYouTubeChannel, expiryFrom, syncSocialAccount } = require("../services/socialSync");
 
 const FRONTEND_URL = process.env.CLIENT_URL || "http://localhost:5183";
@@ -196,6 +198,18 @@ const callback = async (req, res) => {
       partner.socialAccounts.push({ platform, ...connection, reviewStatus: "pending", submittedAt: new Date() });
     }
     await partner.save();
+
+    // Reconnecting an already-verified account needs no review.
+    if (!sameAccount || sameAccount.reviewStatus === "pending") {
+      await notifyAdmins({
+        type: "social_account_connected",
+        title: "Social account to verify",
+        message: `{name} connected ${platformLabel(platform)} account ${account.username ? `@${account.username}` : account.accountId} (${Number(account.followers || 0).toLocaleString("en-IN")} followers).`,
+        link: "/admin/social-media",
+        partner
+      });
+    }
+
     return res.redirect(`${frontendUrl}/partner/social-media?social=connected&platform=${platform}`);
   } catch (error) {
     console.error("social OAuth callback error:", error);

@@ -2,6 +2,10 @@ const path = require("path");
 const fs = require("fs");
 const { PartnerDocument } = require("../models/Index");
 const logActivity = require("../utils/logActivity");
+const notifyAdmins = require("../utils/notifyAdmins");
+
+// Readable names for the admin notification text.
+const DOC_LABEL = { pan_card: "PAN card", cancelled_cheque: "cancelled cheque", gst_certificate: "GST certificate", msme_udyam: "MSME/Udyam certificate", bank_proof: "bank proof" };
 
 /* ============================================================
    PARTNER KYC DOCUMENTS
@@ -58,6 +62,14 @@ const uploadDocument = async (req, res) => {
     } catch (statusError) {
       console.error("uploadDocument: partner status flip failed (document was still saved):", statusError);
     }
+
+    await notifyAdmins({
+      type: "document_uploaded",
+      title: "KYC document to review",
+      message: `{name} uploaded their ${DOC_LABEL[documentType] || documentType.replace(/_/g, " ")}.`,
+      link: "/admin/documents",
+      partner: req.partner
+    });
 
     await logActivity({
       partnerId: req.partner._id,

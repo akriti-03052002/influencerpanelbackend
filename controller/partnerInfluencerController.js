@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const { Partner, InfluencerContentSubmission } = require("../models/Index");
 const normalizeContentUrl = require("../utils/normalizeContentUrl");
 const { syncStaleAccounts } = require("../services/socialSync");
+const notifyAdmins = require("../utils/notifyAdmins");
+const { platformLabel, withArticle } = notifyAdmins;
 
 const PLATFORMS = {
   instagram: ["instagram.com"],
@@ -105,6 +107,14 @@ const submitAccount = async (req, res) => {
     }
     await req.partner.save();
 
+    await notifyAdmins({
+      type: "social_account_submitted",
+      title: "Social account to verify",
+      message: `{name} added ${platformLabel(platform)} account @${accountId} (${followers.toLocaleString("en-IN")} followers).`,
+      link: "/admin/social-media",
+      partner: req.partner
+    });
+
     return res.status(201).json({
       success: true,
       message: "Social account submitted for admin review.",
@@ -159,6 +169,14 @@ const submitContent = async (req, res) => {
       url,
       normalizedUrl
     });
+    await notifyAdmins({
+      type: "content_submitted",
+      title: `New ${contentType} to review`,
+      message: `{name} submitted ${withArticle(platformLabel(account.platform))} ${contentType} from @${account.username || account.accountId}.`,
+      link: "/admin/social-media",
+      partner: req.partner
+    });
+
     return res.status(201).json({ success: true, message: "Post/reel submitted for review.", data: submission });
   } catch (error) {
     if (error.code === 11000) {

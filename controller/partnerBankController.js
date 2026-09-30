@@ -1,6 +1,7 @@
 const { PartnerBankAccount, PartnerDocument } = require("../models/Index");
 const { encrypt, maskAccountNumber, maskIfsc } = require("../utils/encryption");
 const logActivity = require("../utils/logActivity");
+const notifyAdmins = require("../utils/notifyAdmins");
 const { holdSettlementsForPartner } = require("../utils/settlementHold");
 const { createOrder, verifyPaymentSignature, fetchPaymentById, RazorpayLookupError } = require("../utils/razorpay");
 const { applyBankVerificationPayment } = require("../services/partnerBankVerification");
@@ -127,6 +128,14 @@ const upsertBankAccount = async (req, res) => {
       entityId: bankAccount._id,
       description: `${req.partnerUser.name} added/updated bank account details.`,
       req
+    });
+
+    await notifyAdmins({
+      type: "bank_submitted",
+      title: "Bank account to verify",
+      message: "{name} added or updated their bank account details.",
+      link: "/admin/bank",
+      partner: req.partner
     });
 
     return res.json({
