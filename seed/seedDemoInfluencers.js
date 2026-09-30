@@ -36,6 +36,7 @@ const {
   PartnerSettlement
 } = require("../models/Index");
 const { recordContentPayment } = require("../services/contentPayment");
+const { attachPartnerAgreement } = require("../services/generatePartnerAgreement");
 const { encrypt, maskAccountNumber, maskIfsc } = require("../utils/encryption");
 const { ROLE_PERMISSIONS } = require("../config/roles");
 const normalizeContentUrl = require("../utils/normalizeContentUrl");
@@ -354,6 +355,9 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
   await Promise.all(insertedNotifications.map((n, i) =>
     PartnerNotification.collection.updateOne({ _id: n._id }, { $set: { createdAt: daysAgo(notifications[i].at) } })
   ));
+
+  // Verified influencers get their agreement on activation — same here.
+  if (verified) await attachPartnerAgreement(await Partner.findById(partner._id), admin._id);
 
   return { email, status: spec.status, accounts: spec.accounts.length, posts: spec.posts.length };
 };

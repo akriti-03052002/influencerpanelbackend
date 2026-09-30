@@ -1,7 +1,7 @@
 const path = require("path");
-const fs = require("fs");
 const { PartnerDocument, PartnerBankAccount, Partner, PartnerNotification } = require("../models/Index");
 const logActivity = require("../utils/logActivity");
+const sendDocumentFile = require("../utils/sendDocumentFile");
 const { autoActivatePartnerIfVerified } = require("../services/vendorActivation");
 const { isKycDocumentsVerified } = require("../utils/partnerVerification");
 
@@ -24,13 +24,7 @@ const downloadDocument = async (req, res) => {
     return res.status(404).json({ success: false, message: "Document not found." });
   }
 
-  const filePath = path.join(__dirname, "..", "uploads", "partners", document.file.objectKey);
-
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ success: false, message: "File not found on server." });
-  }
-
-  return res.download(filePath, document.file.originalName);
+  return sendDocumentFile(res, document);
 };
 
 // Admin onboards a partner directly (no self-registration) and uploads

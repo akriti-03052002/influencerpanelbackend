@@ -76,6 +76,12 @@ const PartnerDocumentSchema = new Schema(
       }
     },
 
+    // System-generated PDFs (the Influencer Agreement) are also kept here, so
+    // they survive the server's disk being wiped (e.g. a redeploy on a host
+    // without persistent storage). Excluded from normal queries — it's only
+    // read when the file on disk is missing.
+    generatedPdf: { type: Buffer, select: false },
+
     /* VERIFICATION */
     verification: {
       status: {

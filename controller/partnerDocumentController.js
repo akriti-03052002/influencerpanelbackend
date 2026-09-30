@@ -1,8 +1,9 @@
 const path = require("path");
-const fs = require("fs");
 const { PartnerDocument } = require("../models/Index");
 const logActivity = require("../utils/logActivity");
 const notifyAdmins = require("../utils/notifyAdmins");
+const sendDocumentFile = require("../utils/sendDocumentFile");
+const { attachPartnerAgreement } = require("../services/generatePartnerAgreement");
 
 // Readable names for the admin notification text.
 const DOC_LABEL = { pan_card: "PAN card", cancelled_cheque: "cancelled cheque", gst_certificate: "GST certificate", msme_udyam: "MSME/Udyam certificate", bank_proof: "bank proof" };
@@ -12,6 +13,17 @@ const DOC_LABEL = { pan_card: "PAN card", cancelled_cheque: "cancelled cheque", 
 ============================================================ */
 
 const listDocuments = async (req, res) => {
+  // A verified influencer always has an agreement. If they don't (e.g. they
+  // were activated without going through verification), issue it now — on
+  // the server that will also serve the file.
+  if (req.partner.status === "active") {
+    const hasAgreement = await PartnerDocument.exists({ partnerId: req.partner._id, documentType: "partner_agreement" });
+    if (!hasAgreement) {
+      await attachPartnerAgreement(req.partner, req.partner.verification?.verifiedBy)
+        .catch((error) => console.error("listDocuments: issuing missing agreement failed:", error.message));
+    }
+  }
+
   const documents = await PartnerDocument.find({ partnerId: req.partner._id }).sort({ createdAt: -1 });
 
   return res.json({ success: true, data: documents });
@@ -104,13 +116,7 @@ const downloadDocument = async (req, res) => {
       return res.status(403).json({ success: false, message: "This document is no longer available for download once your account is verified." });
     }
 
-    const filePath = path.join(__dirname, "..", "uploads", "partners", document.file.objectKey);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: "File not found on server." });
-    }
-
-    return res.download(filePath, document.file.originalName);
+    return await sendDocumentFile(res, document);
   } catch (error) {
     console.error("downloadDocument error:", error);
     return res.status(500).json({ success: false, message: "Something went wrong downloading the document." });

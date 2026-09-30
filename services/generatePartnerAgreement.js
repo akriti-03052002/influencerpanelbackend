@@ -220,7 +220,7 @@ const renderAgreementPdf = (partner, template, settlementSetting) => new Promise
  * returns file metadata in the same shape partnerDocumentController.
  * uploadDocument produces, so the caller can save it as a PartnerDocument row.
  */
-const generatePartnerAgreementFile = async (partner) => {
+const buildAgreementFile = async (partner) => {
   const partnerDir = path.join(UPLOAD_ROOT, String(partner._id));
   fs.mkdirSync(partnerDir, { recursive: true });
 
@@ -235,19 +235,25 @@ const generatePartnerAgreementFile = async (partner) => {
   fs.writeFileSync(filePath, pdf);
 
   return {
-    objectKey: path.join(String(partner._id), filename),
-    originalName: `SPOTX ${template.title}.pdf`,
-    mimeType: "application/pdf",
-    size: pdf.length
+    pdf,
+    file: {
+      objectKey: path.join(String(partner._id), filename),
+      originalName: `SPOTX ${template.title}.pdf`,
+      mimeType: "application/pdf",
+      size: pdf.length
+    }
   };
 };
 
+const generatePartnerAgreementFile = async (partner) => (await buildAgreementFile(partner)).file;
+
 const createAgreementDocument = async (partner, adminUserId) => {
-  const file = await generatePartnerAgreementFile(partner);
+  const { file, pdf } = await buildAgreementFile(partner);
   return PartnerDocument.create({
     partnerId: partner._id,
     documentType: "partner_agreement",
     file,
+    generatedPdf: pdf,
     verification: {
       status: "verified",
       verifiedBy: adminUserId,
