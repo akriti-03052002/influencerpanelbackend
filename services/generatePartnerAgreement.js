@@ -3,8 +3,8 @@ const path = require("path");
 const PDFDocument = require("pdfkit");
 const { SettlementSetting, PartnerDocument } = require("../models/Index");
 const { getAgreementTemplate } = require("./agreementTemplate");
+const { storeBuffer } = require("../utils/fileStorage");
 
-const UPLOAD_ROOT = path.join(__dirname, "..", "uploads", "partners");
 const LOGO_PATH = path.join(__dirname, "..", "assets", "spotx-logo.png");
 const LOGO_ASPECT = 789 / 307; // actual pixel dimensions of assets/spotx-logo.png
 
@@ -221,28 +221,22 @@ const renderAgreementPdf = (partner, template, settlementSetting) => new Promise
  * uploadDocument produces, so the caller can save it as a PartnerDocument row.
  */
 const buildAgreementFile = async (partner) => {
-  const partnerDir = path.join(UPLOAD_ROOT, String(partner._id));
-  fs.mkdirSync(partnerDir, { recursive: true });
-
   const filename = `influencer-agreement-${Date.now()}.pdf`;
-  const filePath = path.join(partnerDir, filename);
 
   const [template, settlementSetting] = await Promise.all([
     getAgreementTemplate(),
     SettlementSetting.findOne({ partnerId: partner._id })
   ]);
   const pdf = await renderAgreementPdf(partner, template, settlementSetting);
-  fs.writeFileSync(filePath, pdf);
+  // Cloudinary when configured, otherwise the server's disk.
+  const file = await storeBuffer(pdf, {
+    subfolder: String(partner._id),
+    filename,
+    originalName: `SPOTX ${template.title}.pdf`,
+    mimeType: "application/pdf"
+  });
 
-  return {
-    pdf,
-    file: {
-      objectKey: path.join(String(partner._id), filename),
-      originalName: `SPOTX ${template.title}.pdf`,
-      mimeType: "application/pdf",
-      size: pdf.length
-    }
-  };
+  return { pdf, file };
 };
 
 const generatePartnerAgreementFile = async (partner) => (await buildAgreementFile(partner)).file;

@@ -1,6 +1,6 @@
-const path = require("path");
 const { PartnerDocument, PartnerBankAccount, Partner, PartnerNotification } = require("../models/Index");
 const logActivity = require("../utils/logActivity");
+const { storeUploadedFile } = require("../utils/fileStorage");
 const sendDocumentFile = require("../utils/sendDocumentFile");
 const { autoActivatePartnerIfVerified } = require("../services/vendorActivation");
 const { isKycDocumentsVerified } = require("../utils/partnerVerification");
@@ -58,13 +58,7 @@ const uploadDocumentForPartner = async (req, res) => {
     const document = await PartnerDocument.create({
       partnerId,
       documentType,
-      file: {
-        storageProvider: "private_storage",
-        objectKey: path.join(String(partnerId), req.file.filename),
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size
-      },
+      file: await storeUploadedFile(req.file, `partners/${partnerId}`),
       verification: { status: "pending" }
     });
 

@@ -1,17 +1,13 @@
-const path = require("path");
-const fs = require("fs");
 const { PartnerDocument } = require("../models/Index");
-
-const UPLOAD_ROOT = path.join(__dirname, "..", "uploads", "partners");
+const { sendStoredFile } = require("./fileStorage");
 
 /**
- * Sends a PartnerDocument's file. Serves it from disk when it's there; for a
- * system-generated PDF (the agreement) whose file was lost with the server's
- * disk, falls back to the copy stored in the database.
+ * Sends a PartnerDocument's file from wherever it's stored (Cloudinary or
+ * disk). For a system-generated PDF (the agreement) whose stored file can't
+ * be found, falls back to the copy kept in the database.
  */
 const sendDocumentFile = async (res, document) => {
-  const filePath = path.join(UPLOAD_ROOT, document.file.objectKey);
-  if (fs.existsSync(filePath)) return res.download(filePath, document.file.originalName);
+  if (await sendStoredFile(res, document.file)) return undefined;
 
   const stored = await PartnerDocument.findById(document._id).select("+generatedPdf").lean();
   if (stored?.generatedPdf) {

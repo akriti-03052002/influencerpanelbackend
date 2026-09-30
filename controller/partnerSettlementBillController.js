@@ -1,8 +1,8 @@
-const path = require("path");
 const { PartnerSettlement } = require("../models/Index");
 const PartnerSettlementBill = require("../models/PartnerSettlementBill");
 const { GST_RATE_PERCENT } = require("../config/constant");
 const logActivity = require("../utils/logActivity");
+const { storeUploadedFile } = require("../utils/fileStorage");
 const notifyAdmins = require("../utils/notifyAdmins");
 const { recordSettlementHistory } = require("../utils/settlementHistory");
 
@@ -57,13 +57,7 @@ const submitBill = async (req, res) => {
       billDate,
       gstin,
       amount: { commission, gstRatePercent: GST_RATE_PERCENT, gstAmount, totalBillAmount, currency: settlement.amount.currency },
-      file: {
-        storageProvider: "private_storage",
-        objectKey: path.join(String(req.partner._id), "bills", req.file.filename),
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size
-      },
+      file: await storeUploadedFile(req.file, `partners/${req.partner._id}/bills`),
       status: "submitted",
       verifiedBy: undefined,
       verifiedAt: undefined,

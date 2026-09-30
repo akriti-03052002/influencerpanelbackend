@@ -1,6 +1,6 @@
-const path = require("path");
 const { PartnerDocument } = require("../models/Index");
 const logActivity = require("../utils/logActivity");
+const { storeUploadedFile } = require("../utils/fileStorage");
 const notifyAdmins = require("../utils/notifyAdmins");
 const sendDocumentFile = require("../utils/sendDocumentFile");
 const { attachPartnerAgreement } = require("../services/generatePartnerAgreement");
@@ -51,13 +51,7 @@ const uploadDocument = async (req, res) => {
       partnerId: req.partner._id,
       documentType,
       documentNumber: documentNumber || "",
-      file: {
-        storageProvider: "private_storage",
-        objectKey: path.join(String(req.partner._id), req.file.filename),
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size
-      },
+      file: await storeUploadedFile(req.file, `partners/${req.partner._id}`),
       verification: { status: "pending" }
     });
 
