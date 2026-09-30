@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Partner, InfluencerContentSubmission, PartnerNotification } = require("../models/Index");
-const { reissuePartnerAgreement } = require("../services/generatePartnerAgreement");
+const { attachPartnerAgreement, reissuePartnerAgreement } = require("../services/generatePartnerAgreement");
+const { platformLabel } = require("../utils/notifyAdmins");
 const { recordContentPayment } = require("../services/contentPayment");
 const AdminNotification = require("../models/AdminNotification");
 
@@ -56,41 +57,58 @@ const updateRates = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid social account." });
     }
 
+    const partnerBefore = await Partner.findOne({ _id: req.params.partnerId, partnerType: "influencer" });
+    const account = partnerBefore?.socialAccounts.id(req.params.accountId);
+    if (!account) return res.status(404).json({ success: false, message: "Social account not found." });
+
+    const before = { post: account.paymentRates?.post || 0, reel: account.paymentRates?.reel || 0 };
+    if (before.post === post && before.reel === reel) {
+      return res.json({ success: true, message: "These are already the rates for this account — nothing changed.", data: { post, reel, currency, changed: false } });
+    }
+
     const paymentRates = { post, reel, currency, updatedBy: req.adminUser._id, updatedAt: new Date() };
     // Positional update so the account's stored login tokens are untouched.
-    const result = await Partner.updateOne(
-      { _id: req.params.partnerId, partnerType: "influencer", "socialAccounts._id": req.params.accountId },
+    await Partner.updateOne(
+      { _id: req.params.partnerId, "socialAccounts._id": req.params.accountId },
       { $set: { "socialAccounts.$.paymentRates": paymentRates } }
     );
 
-    if (!result.matchedCount) return res.status(404).json({ success: false, message: "Social account not found." });
-
-    // The agreement is where the influencer's prices are stated, so a price
-    // change reissues it. A failure here mustn't undo the saved rates.
-    let agreementReissued = false;
-    try {
-      const partner = await Partner.findById(req.params.partnerId);
-      const agreement = await reissuePartnerAgreement(partner, req.adminUser._id);
-      if (agreement) {
-        agreementReissued = true;
-        await PartnerNotification.create({
-          partnerId: partner._id,
-          type: "partner_agreement_issued",
-          title: "Your Influencer Agreement was updated",
-          message: "SPOTX updated your payment rates. Your updated Influencer Agreement with the new rates is in Documents.",
-          entity: { type: "PartnerDocument", entityId: agreement._id }
-        });
+    // The agreement is where the influencer's prices are stated, so every
+    // price change updates it. A verified influencer always has one after
+    // this (their first is issued now if they didn't have one yet); before
+    // verification there's no agreement, and activation issues it with
+    // whatever rates are set by then. A failure here mustn't undo the rates.
+    const partner = await Partner.findById(req.params.partnerId);
+    let agreement = null;
+    if (partner.status === "active") {
+      try {
+        agreement = (await reissuePartnerAgreement(partner, req.adminUser._id)) || (await attachPartnerAgreement(partner, req.adminUser._id));
+      } catch (agreementError) {
+        console.error("updateRates: agreement update failed:", agreementError);
       }
-    } catch (agreementError) {
-      console.error("updateRates: agreement reissue failed:", agreementError);
     }
+
+    // Always tell the influencer what they now earn on this account.
+    const money = (n) => (n ? `₹${n.toLocaleString("en-IN")}` : "not paid");
+    const handle = account.username || account.accountId;
+    const label = `${platformLabel(account.platform)} @${handle}`;
+    await PartnerNotification.create({
+      partnerId: partner._id,
+      type: "payment_rates_updated",
+      title: `Your rates for ${label} were updated`,
+      message:
+        `You now earn ${money(post)} per post and ${money(reel)} per reel from ${label}` +
+        ` (was ${money(before.post)} per post and ${money(before.reel)} per reel).` +
+        (agreement ? " Your Influencer Agreement has been updated with the new rates — see Documents." : ""),
+      entity: agreement ? { type: "PartnerDocument", entityId: agreement._id } : { type: "Partner", entityId: partner._id }
+    }).catch((notifyError) => console.error("updateRates: notification failed:", notifyError.message));
 
     return res.json({
       success: true,
-      message: agreementReissued
-        ? "Payment rates updated — the influencer's agreement was reissued with the new rates."
-        : "Payment rates updated for this account.",
-      data: { post, reel, currency, agreementReissued }
+      message: agreement
+        ? "Rates updated — the influencer was notified and their agreement was updated."
+        : "Rates updated — the influencer was notified. Their agreement will include these rates once they're verified.",
+      data: { post, reel, currency, changed: true, agreementUpdated: Boolean(agreement) }
     });
   } catch (error) {
     console.error("updateRates error:", error);

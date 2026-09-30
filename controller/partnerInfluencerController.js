@@ -51,7 +51,14 @@ const listAccounts = async (req, res) => {
     reviewStatus: account.reviewStatus || "pending",
     submittedAt: account.submittedAt || account.createdAt,
     reviewedAt: account.reviewedAt,
-    rejectionReason: account.rejectionReason || ""
+    rejectionReason: account.rejectionReason || "",
+    // What the influencer earns per approved post/reel from this account.
+    paymentRates: {
+      post: account.paymentRates?.post || 0,
+      reel: account.paymentRates?.reel || 0,
+      currency: account.paymentRates?.currency || "INR",
+      updatedAt: account.paymentRates?.updatedAt
+    }
   }));
   return res.json({ success: true, data: accounts });
 };
