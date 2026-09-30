@@ -5,7 +5,7 @@ const AdminNotification = require("../models/AdminNotification");
  * Never throws — a failed notification must not fail the influencer's
  * actual request (their upload/submission is already saved by then).
  */
-const notifyAdmins = async ({ type, title, message = "", link = "", partner }) => {
+const notifyAdmins = async ({ type, title, message = "", link = "", partner, entityId }) => {
   try {
     const name = partner?.legalEntity?.businessName || partner?.primaryContact?.name || "An influencer";
     await AdminNotification.create({
@@ -13,7 +13,8 @@ const notifyAdmins = async ({ type, title, message = "", link = "", partner }) =
       title,
       message: message.replace("{name}", name),
       link,
-      partnerId: partner?._id
+      partnerId: partner?._id,
+      entityId
     });
   } catch (error) {
     console.error("notifyAdmins failed:", error.message);

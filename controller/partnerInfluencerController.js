@@ -174,7 +174,8 @@ const submitContent = async (req, res) => {
       title: `New ${contentType} to review`,
       message: `{name} submitted ${withArticle(platformLabel(account.platform))} ${contentType} from @${account.username || account.accountId}.`,
       link: "/admin/social-media",
-      partner: req.partner
+      partner: req.partner,
+      entityId: submission._id
     });
 
     return res.status(201).json({ success: true, message: "Post/reel submitted for review.", data: submission });

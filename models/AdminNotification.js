@@ -18,6 +18,8 @@ const AdminNotificationSchema = new Schema(
     // Admin panel path to open, e.g. "/admin/partners/<id>".
     link: { type: String, default: "" },
     partnerId: { type: ObjectId, ref: "Partner", index: true },
+    // The record it's about (e.g. the submitted post), when there is one.
+    entityId: { type: ObjectId, index: true },
     readBy: [{ type: ObjectId, ref: "User" }]
   },
   { timestamps: true }
