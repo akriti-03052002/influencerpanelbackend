@@ -23,18 +23,11 @@ const PartnerSchema = new Schema(
       required: true
     },
 
-    /* BUSINESS INFORMATION */
+    /* LEGAL DETAILS */
+    // Influencers are individuals, so there's no business name — they're
+    // shown by primaryContact.name everywhere. legalName is the name on
+    // their PAN, if different.
     legalEntity: {
-      // Not required at registration anymore — only phone/email/type/password
-      // are collected up front (see partnerAuthController.registerPartner and
-      // adminPartnerController.createPartner). The partner fills this in from
-      // their Profile page afterward; until then dashboards/controllers treat
-      // a blank businessName as "profile incomplete".
-      businessName: {
-        type: String,
-        default: "",
-        trim: true
-      },
       legalName: {
         type: String,
         default: ""

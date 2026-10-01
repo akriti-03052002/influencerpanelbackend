@@ -14,7 +14,7 @@ const { getMaskedSettings, updateSettings } = require("../utils/paymentGatewayCo
 const listSettlementSettings = async (req, res) => {
   const filter = {};
   if (req.query.partnerId && mongoose.Types.ObjectId.isValid(req.query.partnerId)) filter.partnerId = req.query.partnerId;
-  const settings = await SettlementSetting.find(filter).populate("partnerId", "partnerCode legalEntity.businessName");
+  const settings = await SettlementSetting.find(filter).populate("partnerId", "partnerCode primaryContact.name");
   return res.json({ success: true, data: settings });
 };
 

@@ -12,7 +12,7 @@ const { isKycDocumentsVerified } = require("../utils/partnerVerification");
 const listPendingDocuments = async (req, res) => {
   const documents = await PartnerDocument.find({ "verification.status": "pending" })
     .sort({ createdAt: 1 })
-    .populate("partnerId", "partnerCode legalEntity.businessName");
+    .populate("partnerId", "partnerCode primaryContact.name");
 
   return res.json({ success: true, data: documents });
 };

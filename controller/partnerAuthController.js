@@ -228,7 +228,7 @@ const registerPartner = async (req, res) => {
       partner: {
         id: partner._id,
         partnerCode: partner.partnerCode,
-        businessName: partner.legalEntity.businessName,
+        name: partner.primaryContact.name,
         partnerType: partner.partnerType,
         status: partner.status,
         verificationStatus: partner.verification.overallStatus
@@ -313,7 +313,7 @@ const loginPartner = async (req, res) => {
       partner: {
         id: partner._id,
         partnerCode: partner.partnerCode,
-        businessName: partner.legalEntity.businessName,
+        name: partner.primaryContact.name,
         partnerType: partner.partnerType,
         status: partner.status,
         verificationStatus: partner.verification.overallStatus

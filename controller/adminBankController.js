@@ -11,7 +11,7 @@ const { holdSettlementsForPartner, releaseSettlementsForPartnerByCodes } = requi
 const listPendingBankAccounts = async (req, res) => {
   const accounts = await PartnerBankAccount.find({ "verification.status": "pending" })
     .sort({ createdAt: 1 })
-    .populate("partnerId", "partnerCode legalEntity.businessName");
+    .populate("partnerId", "partnerCode primaryContact.name");
 
   return res.json({ success: true, data: accounts });
 };

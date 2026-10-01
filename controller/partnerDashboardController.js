@@ -1,5 +1,5 @@
 const { PartnerActivity, PartnerCommission, PartnerNotification, PartnerDocument, PartnerBankAccount } = require("../models/Index");
-const { getRequiredDocumentTypes } = require("../utils/partnerVerification");
+const { getRequiredDocumentTypes, isProfileComplete } = require("../utils/partnerVerification");
 
 /* ============================================================
    PARTNER DASHBOARD
@@ -57,10 +57,7 @@ const getDashboard = async (req, res) => {
         verificationStatus: partner.verification.overallStatus,
         partnerStatus: partner.status,
         partnerRejectionReason: partner.status === "rejected" ? partner.verification.rejectionReason : "",
-        // Registration only collects name/email/phone/type now — business
-        // name is the first thing filled in from Profile afterward, so its
-        // absence is what "incomplete" hinges on.
-        profileComplete: Boolean(partner.legalEntity.businessName),
+        profileComplete: isProfileComplete(partner),
         kycStatus: computeKycStatus(documents, partner.partnerType),
         bankStatus: computeBankStatus(bankAccount),
         unreadNotifications,

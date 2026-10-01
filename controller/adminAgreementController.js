@@ -17,7 +17,7 @@ const { renderAgreementPdf, reissuePartnerAgreement } = require("../services/gen
 const SAMPLE_INFLUENCER = {
   _id: new mongoose.Types.ObjectId(),
   partnerCode: "PTN-SAMPLE",
-  legalEntity: { businessName: "Sample Creator Studio", legalName: "" },
+  legalEntity: { legalName: "" },
   primaryContact: { name: "Sample Influencer", email: "influencer@example.com", phone: "+91 90000 00000" },
   address: { city: "Mumbai", state: "Maharashtra", country: "India" },
   socialAccounts: [

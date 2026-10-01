@@ -52,7 +52,6 @@ const INFLUENCERS = [
   {
     key: "ananya",
     name: "Ananya Iyer",
-    businessName: "Ananya Creates",
     phone: "+91 9820011223",
     address: { state: "Karnataka", city: "Bengaluru", addressLine1: "14 Indiranagar 2nd Stage", pincode: "560038" },
     status: "active",
@@ -75,7 +74,6 @@ const INFLUENCERS = [
   {
     key: "kabir",
     name: "Kabir Malhotra",
-    businessName: "Kabir Eats",
     phone: "+91 9810098765",
     address: { state: "Delhi", city: "New Delhi", addressLine1: "B-42 Hauz Khas", pincode: "110016" },
     status: "active",
@@ -95,7 +93,6 @@ const INFLUENCERS = [
   {
     key: "vikram",
     name: "Vikram Rao",
-    businessName: "TechWithVikram",
     phone: "+91 9000456789",
     address: { state: "Telangana", city: "Hyderabad", addressLine1: "Plot 7, Jubilee Hills", pincode: "500033" },
     status: "active",
@@ -114,7 +111,6 @@ const INFLUENCERS = [
   {
     key: "meera",
     name: "Meera Nair",
-    businessName: "",
     phone: "+91 9447012345",
     address: { state: "Kerala", city: "Kochi", addressLine1: "", pincode: "" },
     status: "pending_verification",
@@ -129,7 +125,6 @@ const INFLUENCERS = [
   {
     key: "sana",
     name: "Sana Qureshi",
-    businessName: "Sana Style Diaries",
     phone: "+91 9930087654",
     address: { state: "Maharashtra", city: "Mumbai", addressLine1: "21 Bandra West", pincode: "400050" },
     status: "rejected",
@@ -190,10 +185,7 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
   const partner = await Partner.create({
     partnerCode: `PTN-DEMO${String(index + 1).padStart(3, "0")}`,
     partnerType: "influencer",
-    legalEntity: {
-      businessName: spec.businessName,
-      legalName: spec.businessName ? spec.name : ""
-    },
+    legalEntity: { legalName: spec.name },
     primaryContact: { name: spec.name, email, phone: spec.phone, designation: "Creator" },
     address: { country: "India", ...spec.address },
     socialAccounts: spec.accounts.map((a) => ({

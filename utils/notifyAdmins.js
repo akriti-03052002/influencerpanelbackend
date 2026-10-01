@@ -7,7 +7,7 @@ const AdminNotification = require("../models/AdminNotification");
  */
 const notifyAdmins = async ({ type, title, message = "", link = "", partner, entityId }) => {
   try {
-    const name = partner?.legalEntity?.businessName || partner?.primaryContact?.name || "An influencer";
+    const name = partner?.primaryContact?.name || "An influencer";
     await AdminNotification.create({
       type,
       title,

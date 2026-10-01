@@ -72,14 +72,14 @@ const inviteTeamMember = async (req, res) => {
     });
 
     const activationLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/partner/reset-password/${rawToken}`;
-    const businessName = req.partner.legalEntity?.businessName || "your team";
+    const accountName = req.partner.primaryContact?.name || "your team";
 
     await sendMail({
       to: teamMember.email,
-      subject: `You've been invited to join ${businessName} on SPOTX Influencer Panel`,
-      text: `${req.partnerUser.name} invited you to join ${businessName} as ${role}. Set your password to activate your account: ${activationLink}\n\nThis link expires in 7 days.`,
+      subject: `You've been invited to join ${accountName} on SPOTX Influencer Panel`,
+      text: `${req.partnerUser.name} invited you to join ${accountName} as ${role}. Set your password to activate your account: ${activationLink}\n\nThis link expires in 7 days.`,
       html: `
-        <p>${req.partnerUser.name} invited you to join ${businessName} on SPOTX Influencer Panel as <strong>${role}</strong>.</p>
+        <p>${req.partnerUser.name} invited you to join ${accountName} on SPOTX Influencer Panel as <strong>${role}</strong>.</p>
         <p><a href="${activationLink}">Set your password to activate your account</a></p>
         <p>This link expires in 7 days.</p>
       `

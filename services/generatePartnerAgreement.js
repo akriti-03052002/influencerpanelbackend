@@ -49,7 +49,6 @@ const fillPlaceholders = (text, values) =>
 const renderAgreementPdf = (partner, template, settlementSetting) => new Promise((resolve, reject) => {
   const effectiveDate = new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
   const agreementRef = `SPX-AGR-${partner.partnerCode}`;
-  const influencerName = partner.legalEntity?.businessName || partner.primaryContact.name;
   const accounts = pricedAccounts(partner);
 
   const settlementCycle = (settlementSetting?.settlementType || "monthly").toLowerCase();
@@ -127,7 +126,6 @@ const renderAgreementPdf = (partner, template, settlementSetting) => new Promise
   doc.fontSize(10).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("The Influencer");
   doc.font("Helvetica").fillColor(CHARCOAL);
   doc.text(`Name: ${partner.primaryContact.name}`);
-  if (partner.legalEntity?.businessName) doc.text(`Creator / Brand Name: ${partner.legalEntity.businessName}`);
   if (partner.legalEntity?.legalName) doc.text(`Registered Legal Name: ${partner.legalEntity.legalName}`);
   doc.text(`Influencer Code: ${partner.partnerCode}`);
   doc.text(`Address: ${formatAddress(partner.address)}`);
@@ -181,7 +179,6 @@ const renderAgreementPdf = (partner, template, settlementSetting) => new Promise
   doc.fontSize(9).fillColor(BRAND_BLACK).font("Helvetica-Bold").text("For the Influencer", 300, colY);
   doc.font("Helvetica").fillColor(CHARCOAL).fontSize(9);
   doc.text(partner.primaryContact.name, 300, colY + 14);
-  if (influencerName !== partner.primaryContact.name) doc.text(influencerName, 300, colY + 28);
 
   // ---- Footer: page numbers on every page ----
   // Writing inside the bottom margin makes pdfkit think the content

@@ -51,7 +51,14 @@ const isPartnerFullyVerified = async (partnerId, partnerType) => {
   return allDocsVerified && bankVerified;
 };
 
+/**
+ * Registration only collects name, email and phone; the address is the one
+ * thing filled in afterwards from Profile, so it's what "complete" hinges on.
+ */
+const isProfileComplete = (partner) => Boolean(partner?.address?.state && partner?.address?.city);
+
 module.exports = {
+  isProfileComplete,
   isPartnerFullyVerified,
   isKycDocumentsVerified,
   getRequiredDocumentTypes,

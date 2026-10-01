@@ -14,7 +14,7 @@ const listCommissions = async (req, res) => {
 
   const commissions = await PartnerCommission.find(filter)
     .sort({ createdAt: -1 })
-    .populate("partnerId", "partnerCode legalEntity.businessName");
+    .populate("partnerId", "partnerCode primaryContact.name");
 
   return res.json({ success: true, data: commissions });
 };

@@ -93,7 +93,7 @@ const listSettlements = async (req, res) => {
 
   const settlements = await PartnerSettlement.find(filter)
     .sort({ createdAt: -1 })
-    .populate("partnerId", "partnerCode legalEntity.businessName")
+    .populate("partnerId", "partnerCode primaryContact.name")
     .lean();
 
   return res.json({ success: true, data: await attachBills(await attachMaskedBankAccounts(settlements)) });
@@ -376,7 +376,7 @@ const markSettlementPaid = async (req, res) => {
    to a single partner — admin can open any settlement's breakdown. */
 const getSettlementDetail = async (req, res) => {
   const settlement = await PartnerSettlement.findById(req.params.id)
-    .populate("partnerId", "partnerCode legalEntity.businessName")
+    .populate("partnerId", "partnerCode primaryContact.name")
     .populate({
       path: "commissionIds",
       select: "description transaction.invoiceNumber transaction.revenue calculation.netCommission createdAt"

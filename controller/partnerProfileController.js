@@ -1,5 +1,5 @@
 const { Partner } = require("../models/Index");
-const { getRequiredDocumentTypes } = require("../utils/partnerVerification");
+const { getRequiredDocumentTypes, isProfileComplete } = require("../utils/partnerVerification");
 
 /* ============================================================
    PARTNER PROFILE
@@ -12,7 +12,7 @@ const getProfile = async (req, res) => {
       partner: req.partner,
       user: req.partnerUser,
       requiredDocumentTypes: getRequiredDocumentTypes(req.partner.partnerType),
-      profileComplete: Boolean(req.partner.legalEntity.businessName)
+      profileComplete: isProfileComplete(req.partner)
     }
   });
 };
@@ -20,7 +20,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const {
-      businessName, legalName,
+      legalName,
       contactName, phone, designation,
       country, state, city, addressLine1, addressLine2, pincode,
       socialAccounts
@@ -30,7 +30,6 @@ const updateProfile = async (req, res) => {
     // doesn't silently disconnect accounts linked through Instagram/Facebook.
     const partner = await Partner.findById(req.partner._id).select("+socialAccounts.accessTokenEncrypted +socialAccounts.refreshTokenEncrypted");
 
-    if (businessName) partner.legalEntity.businessName = businessName;
     if (legalName !== undefined) partner.legalEntity.legalName = legalName;
 
     if (contactName) partner.primaryContact.name = contactName;

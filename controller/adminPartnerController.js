@@ -123,7 +123,7 @@ const listPartners = async (req, res) => {
   if (partnerType) filter.partnerType = partnerType;
   if (search) {
     filter.$or = [
-      { "legalEntity.businessName": { $regex: search, $options: "i" } },
+      { "primaryContact.name": { $regex: search, $options: "i" } },
       { partnerCode: { $regex: search, $options: "i" } },
       { "primaryContact.email": { $regex: search, $options: "i" } }
     ];

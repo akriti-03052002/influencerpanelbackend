@@ -9,12 +9,12 @@ const listAccounts = async (req, res) => {
   const partners = await Partner.find({
     partnerType: "influencer",
     "socialAccounts.0": { $exists: true }
-  }).select("partnerCode legalEntity.businessName primaryContact socialAccounts");
+  }).select("partnerCode primaryContact socialAccounts");
 
   const accounts = partners.flatMap((partner) => (partner.socialAccounts || []).map((account) => ({
     _id: account._id,
     partnerId: partner._id,
-    partnerName: partner.legalEntity?.businessName || partner.primaryContact?.name || "Influencer",
+    partnerName: partner.primaryContact?.name || "Influencer",
     partnerCode: partner.partnerCode,
     email: partner.primaryContact?.email,
     platform: account.platform,
@@ -157,7 +157,7 @@ const listSubmissions = async (req, res) => {
   }
   const submissions = await InfluencerContentSubmission.find(filter)
     .sort({ createdAt: -1 })
-    .populate("partnerId", "partnerCode legalEntity.businessName primaryContact");
+    .populate("partnerId", "partnerCode primaryContact");
   const data = await Promise.all(submissions.map(async (submission) => {
     const partner = submission.partnerId;
     const account = await Partner.findById(partner?._id).select("socialAccounts");
@@ -167,7 +167,7 @@ const listSubmissions = async (req, res) => {
       influencer: partner ? {
         _id: partner._id,
         partnerCode: partner.partnerCode,
-        name: partner.legalEntity?.businessName || partner.primaryContact?.name || "Influencer",
+        name: partner.primaryContact?.name || "Influencer",
         email: partner.primaryContact?.email
       } : null,
       socialAccount: socialAccount ? {
