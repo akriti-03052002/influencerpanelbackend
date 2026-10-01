@@ -36,6 +36,12 @@ const adminNotificationRoutes = require("./router/adminNotificationRoutes");
 
 const app = express();
 
+// Render (and most hosts) sit one proxy in front of the app. Trusting that
+// single hop lets req.ip — and so the login rate limiter — see each
+// visitor's real IP instead of the proxy's, without trusting anything a
+// client puts in X-Forwarded-For itself.
+app.set("trust proxy", 1);
+
 /* ==========================================
    MIDDLEWARE
 ========================================== */
