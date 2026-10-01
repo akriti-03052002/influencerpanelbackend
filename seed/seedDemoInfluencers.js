@@ -192,9 +192,7 @@ const seedInfluencer = async (spec, admin, passwordHash, index) => {
     partnerType: "influencer",
     legalEntity: {
       businessName: spec.businessName,
-      legalName: spec.businessName ? spec.name : "",
-      entityType: spec.businessName ? "individual" : undefined,
-      industry: spec.businessName ? "Content Creation" : ""
+      legalName: spec.businessName ? spec.name : ""
     },
     primaryContact: { name: spec.name, email, phone: spec.phone, designation: "Creator" },
     address: { country: "India", ...spec.address },

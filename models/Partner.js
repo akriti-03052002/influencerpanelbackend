@@ -38,26 +38,6 @@ const PartnerSchema = new Schema(
       legalName: {
         type: String,
         default: ""
-      },
-      entityType: {
-        type: String,
-        enum: [
-          "proprietorship",
-          "partnership",
-          "llp",
-          "private_limited",
-          "public_limited",
-          "individual",
-          "other"
-        ]
-      },
-      website: {
-        type: String,
-        default: ""
-      },
-      industry: {
-        type: String,
-        default: ""
       }
     },
 

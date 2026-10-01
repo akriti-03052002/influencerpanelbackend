@@ -30,16 +30,6 @@ const PLATFORM_LABEL = { instagram: "Instagram", facebook: "Facebook", youtube: 
 const pricedAccounts = (partner) =>
   (partner.socialAccounts || []).filter((a) => a.reviewStatus !== "rejected" && (a.paymentRates?.post || a.paymentRates?.reel));
 
-const ENTITY_TYPE_LABEL = {
-  proprietorship: "Sole Proprietorship",
-  partnership: "Partnership Firm",
-  llp: "Limited Liability Partnership",
-  private_limited: "Private Limited Company",
-  public_limited: "Public Limited Company",
-  individual: "Individual",
-  other: "Other Business Entity"
-};
-
 const formatAddress = (address) => {
   if (!address) return "[Address not on file]";
   const parts = [address.addressLine1, address.addressLine2, address.city, address.state, address.pincode, address.country].filter(Boolean);
@@ -139,7 +129,6 @@ const renderAgreementPdf = (partner, template, settlementSetting) => new Promise
   doc.text(`Name: ${partner.primaryContact.name}`);
   if (partner.legalEntity?.businessName) doc.text(`Creator / Brand Name: ${partner.legalEntity.businessName}`);
   if (partner.legalEntity?.legalName) doc.text(`Registered Legal Name: ${partner.legalEntity.legalName}`);
-  if (partner.legalEntity?.entityType) doc.text(`Entity Type: ${ENTITY_TYPE_LABEL[partner.legalEntity.entityType]}`);
   doc.text(`Influencer Code: ${partner.partnerCode}`);
   doc.text(`Address: ${formatAddress(partner.address)}`);
   doc.text(`Email: ${partner.primaryContact.email}`);

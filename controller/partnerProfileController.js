@@ -20,7 +20,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const {
-      businessName, legalName, entityType, website, industry,
+      businessName, legalName,
       contactName, phone, designation,
       country, state, city, addressLine1, addressLine2, pincode,
       socialAccounts
@@ -32,9 +32,6 @@ const updateProfile = async (req, res) => {
 
     if (businessName) partner.legalEntity.businessName = businessName;
     if (legalName !== undefined) partner.legalEntity.legalName = legalName;
-    if (entityType) partner.legalEntity.entityType = entityType;
-    if (website !== undefined) partner.legalEntity.website = website;
-    if (industry !== undefined) partner.legalEntity.industry = industry;
 
     if (contactName) partner.primaryContact.name = contactName;
     if (phone !== undefined) partner.primaryContact.phone = phone;
